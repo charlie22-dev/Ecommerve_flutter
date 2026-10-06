@@ -1,0 +1,9 @@
+{
+  "name": "bookverse-dev-scripts",
+  "private": true,
+  "type": "module",
+  "description": "Local dev-only scripts for the Firebase emulator suite (grant admin, seed sample catalog data). Never run against a real project.",
+  "dependencies": {
+    "firebase-admin": "^12.7.0"
+  }
+}

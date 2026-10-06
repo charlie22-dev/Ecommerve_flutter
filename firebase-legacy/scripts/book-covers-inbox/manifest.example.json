@@ -1,0 +1,17 @@
+{
+  "solo-leveling-vol-5.jpg": {
+    "title": "Solo Leveling, Vol. 5",
+    "author": "Chugong",
+    "price": 450,
+    "stock": 20,
+    "type": "manhwa",
+    "genres": ["Action", "Fantasy", "Adventure"],
+    "format": "paperback",
+    "language": "English",
+    "publisher": "Yen Press",
+    "pages": 320,
+    "isbn": "9781975342596",
+    "description": "Sung Jin-Woo, the weakest hunter, gains a mysterious power that lets him level up without limit.",
+    "featuredSections": ["trending", "forYou"]
+  }
+}

@@ -1,0 +1,122 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isAdmin() {
+      return isSignedIn() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('isAdmin', false) == true;
+    }
+
+    // Public catalog — anyone can read; only an admin (via the app's admin
+    // product form) or the Admin SDK (seed scripts) may write.
+    match /books/{bookId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Per-user data: only the owner may read or write their own subtree —
+    // except `isAdmin` itself, which only an existing admin (or the Admin
+    // SDK, which bypasses rules) may ever set. This stops a user granting
+    // themselves admin via a raw client write.
+    //
+    // `isAdmin` is read with `.get(..., false)` because the client never
+    // writes it (AppUser.toMap() omits it). Plain `data.isAdmin` on a
+    // missing field is a rules *error*, which denies the request — that
+    // made every sign-up's `users/{uid}` create fail with
+    // permission-denied after the Auth account had already been made.
+    match /users/{uid} {
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid) && request.resource.data.get('isAdmin', false) != true;
+      allow update: if isOwner(uid) &&
+        (request.resource.data.get('isAdmin', false) == resource.data.get('isAdmin', false) || isAdmin());
+      allow delete: if isOwner(uid);
+
+      match /library/{bookId} {
+        allow read, write: if isOwner(uid);
+      }
+      match /wishlist/{bookId} {
+        allow read, write: if isOwner(uid);
+      }
+      match /cart/{bookId} {
+        allow read, write: if isOwner(uid);
+      }
+      match /collections/{collectionId} {
+        allow read, write: if isOwner(uid);
+      }
+      match /addresses/{addressId} {
+        allow read, write: if isOwner(uid);
+      }
+    }
+
+    // Public promo codes — anyone signed in can read/apply one at checkout
+    // by code; only an admin (or the Admin SDK) creates/edits them.
+    match /vouchers/{voucherId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Orders: a user can create their own order already in `pending`
+    // (awaiting online payment — never resolves further without a real
+    // payment backend, see README) or `toShip` (Cash on Delivery, no
+    // payment gate needed). Only an admin may then advance it through
+    // toShip → toReceive → completed (there's no separate fulfillment
+    // backend, so the same admin account driving the app does this
+    // directly — see the Orders tab). The owner may only ever flip
+    // `rated` (submitting a review), never the status itself.
+    match /orders/{orderId} {
+      allow read: if isSignedIn() && (resource.data.uid == request.auth.uid || isAdmin());
+      allow create: if isSignedIn()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.status in ['pending', 'toShip'];
+      allow update: if isAdmin() || (
+        isSignedIn() && resource.data.uid == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rated'])
+      );
+      allow delete: if false;
+    }
+
+    // Reviews: public read (Book Details' Reviews section), a buyer may
+    // create their own (never someone else's) and never edit/delete after
+    // submitting — see orders_screen.dart's "Rate this order" flow.
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    // Notifications: only the owner may ever read their own. An admin can
+    // create one for ANY user (order-status-change notifications are
+    // written by whichever admin advances the order — see orders_screen.dart),
+    // or a user can create their own (the sign-up welcome notice — see
+    // firebase_auth_repository.dart). The owner may only ever flip `read`.
+    match /notifications/{notificationId} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isAdmin() || (isSignedIn() && request.resource.data.userId == request.auth.uid);
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+      allow delete: if false;
+    }
+
+    // Messages: a single buyer<->store thread per user (see
+    // store_message.dart). Only the thread's owner may read it. A user may
+    // post into their own thread as either sender (the one-time canned
+    // 'store' welcome message is written client-side by the user opening
+    // an empty thread — harmless since only they can ever read it); an
+    // admin may additionally post a 'store' reply into someone else's
+    // thread.
+    match /messages/{messageId} {
+      allow read: if isSignedIn() && resource.data.uid == request.auth.uid;
+      allow create: if isAdmin() || (isSignedIn() && request.resource.data.uid == request.auth.uid);
+      allow update, delete: if false;
+    }
+  }
+}
