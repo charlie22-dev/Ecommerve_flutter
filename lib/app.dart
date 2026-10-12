@@ -18,8 +18,8 @@ class BookVerseApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
-      themeMode: themeMode,
-      routerConfig: router,
-    );
-  }
+      themeMode: themeMode, 
+      routerConfig: router, 
+    ); 
+  } 
 }
