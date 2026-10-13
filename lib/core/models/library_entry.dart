@@ -2,6 +2,9 @@ import 'package:equatable/equatable.dart';
 
 import '../services/db.dart';
 
+/// The user's reading status for a book in their library.
+/// A book can be in exactly one shelf at a time, but can also be a
+/// [LibraryEntry.isFavorite] regardless of its shelf.
 enum ReadingShelf {
   currentlyReading,
   completed,
