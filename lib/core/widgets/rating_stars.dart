@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_color_tokens.dart';
 
+/// Renders a row of 5 star icons for a given [rating] value (0.0–5.0).
+/// Half-stars are shown when the fractional part of [rating] is ≥ 0.5.
 class RatingStars extends StatelessWidget {
   const RatingStars({
     super.key,
