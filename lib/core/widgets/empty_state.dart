@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_color_tokens.dart';
 
+/// Generic empty-state placeholder used across screens (e.g. empty cart,
+/// no search results). Supply [actionLabel] + [onAction] to show a CTA button.
 class EmptyState extends StatelessWidget {
   const EmptyState({
     super.key,
