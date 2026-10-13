@@ -153,6 +153,7 @@ class Book extends Equatable {
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
+  /// Returns true when at least one unit is available to purchase.
   bool get inStock => stock > 0;
 
   factory Book.fromRow(Map<String, dynamic> row) {
