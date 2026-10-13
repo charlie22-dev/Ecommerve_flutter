@@ -2,6 +2,8 @@ import 'package:equatable/equatable.dart';
 
 import '../services/db.dart';
 
+/// Represents a single item in the user's shopping cart.
+/// [quantity] defaults to 1 and is clamped by the seller's stock at checkout.
 class CartItem extends Equatable {
   const CartItem({required this.bookId, this.quantity = 1, this.addedAt});
 
