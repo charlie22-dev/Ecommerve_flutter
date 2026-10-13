@@ -140,7 +140,7 @@ do $$ begin
     '00000000-0000-0000-0000-00000000ad01', 'standard', 'cashOnDelivery');
 end $$;
 
-reset role;
+reset role; 
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000c2"}', true);
 set local role authenticated;
 do $$ begin
