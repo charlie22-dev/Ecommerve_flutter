@@ -42,6 +42,8 @@ class Voucher extends Equatable {
   /// True if [expiresAt] is set and is in the past (device local time).
   bool get isExpired => expiresAt != null && expiresAt!.isBefore(DateTime.now());
 
+  /// Returns true when the voucher can be applied: it must be active,
+  /// not expired, and the [subtotal] must meet [minPurchase].
   bool isEligible(double subtotal) => isActive && !isExpired && subtotal >= minPurchase;
 
   double discountFor(double subtotal) {
