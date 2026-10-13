@@ -2,6 +2,9 @@ import 'package:equatable/equatable.dart';
 
 import '../services/db.dart';
 
+/// The full user profile, read from the `profiles` table.
+/// Created automatically on signup via a Postgres trigger — see
+/// `on_auth_user_created` in supabase/schema.sql.
 class AppUser extends Equatable {
   const AppUser({
     required this.uid,
