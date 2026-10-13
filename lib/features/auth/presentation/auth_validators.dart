@@ -4,6 +4,8 @@
 abstract final class AuthValidators {
   static final _emailPattern = RegExp(r'^[\w.!#$%&*+/=?^`{|}~-]+@[\w-]+(?:\.[\w-]+)+$');
 
+  /// Returns an error string if [value] is empty or doesn't match a basic
+  /// RFC-5321-style email pattern; returns null when the value is valid.
   static String? email(String? value) {
     final v = value?.trim() ?? '';
     if (v.isEmpty) return 'Enter your email';
