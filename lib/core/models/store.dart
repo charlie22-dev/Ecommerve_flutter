@@ -30,6 +30,7 @@ class Store {
   final bool isOfficial;
   final DateTime? createdAt;
 
+  /// Convenience check — false means the store is suspended and hidden from buyers.
   bool get isActive => status == 'active';
 
   factory Store.fromRow(Map<String, dynamic> row) => Store(
