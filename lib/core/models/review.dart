@@ -5,6 +5,7 @@ import '../services/db.dart';
 /// A buyer's review of a book, written from the "Rate this order" flow on
 /// a completed order (see orders_screen.dart) — one review per book per
 /// order, not editable after submission (matches most marketplace apps).
+/// [rating] is an integer from 1–5; [text] and [photoUrl] are optional.
 class Review extends Equatable {
   const Review({
     required this.id,
