@@ -35,8 +35,30 @@ final adminThreadsProvider = StreamProvider.autoDispose<List<AdminThread>>((ref)
   return ref.watch(adminRepositoryProvider).watchThreads();
 });
 
-final adminStatsProvider = StreamProvider.autoDispose<AdminStats>((ref) {
-  return ref.watch(adminRepositoryProvider).watchStats();
+/// The dashboard's period in days (7, 30 or 90).
+final adminDashboardDaysProvider = StateProvider<int>((ref) => 7);
+
+final adminDashboardProvider = StreamProvider.autoDispose<AdminDashboard>((ref) {
+  return ref.watch(adminRepositoryProvider).watchDashboard(ref.watch(adminDashboardDaysProvider));
+});
+
+final _adminTodoCountsProvider = StreamProvider.autoDispose<AdminTodoCounts>((ref) {
+  return ref.watch(adminRepositoryProvider).watchTodoCounts();
+});
+
+/// Everything waiting on an admin — drives the dashboard's to-do list and
+/// the sidebar badges.
+final adminTodoProvider = Provider.autoDispose<
+    ({int toShip, int lowStock, int sellerApplications, int listingsToReview, int unansweredMessages})>((ref) {
+  final counts = ref.watch(_adminTodoCountsProvider).value;
+  return (
+    toShip: counts?.toShip ?? 0,
+    lowStock: counts?.lowStock ?? 0,
+    sellerApplications:
+        (ref.watch(adminApplicationsProvider).value ?? const []).where((a) => a.status == 'pending').length,
+    listingsToReview: ref.watch(adminListingReviewProvider).value?.length ?? 0,
+    unansweredMessages: (ref.watch(adminThreadsProvider).value ?? const []).where((t) => t.needsReply).length,
+  );
 });
 
 /// A specific customer's thread, viewed by the admin (RLS lets admins read

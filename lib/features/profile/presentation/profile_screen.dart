@@ -183,12 +183,15 @@ class ProfileScreen extends ConsumerWidget {
                 onTap: () => context.push(AppRoute.library),
               ),
               Divider(height: 1, color: context.colors.borderSubtle),
-              _ProfileListRow(
-                icon: Icons.storefront_outlined,
-                label: hasStore ? 'Seller Center' : 'Become a Seller',
-                onTap: () => context.push(AppRoute.seller),
-              ),
-              Divider(height: 1, color: context.colors.borderSubtle),
+              // Admins run the marketplace; they don't sell on it.
+              if (!isAdmin) ...[
+                _ProfileListRow(
+                  icon: Icons.storefront_outlined,
+                  label: hasStore ? 'Seller Center' : 'Become a Seller',
+                  onTap: () => context.push(AppRoute.seller),
+                ),
+                Divider(height: 1, color: context.colors.borderSubtle),
+              ],
               if (isAdmin) ...[
                 _ProfileListRow(
                   icon: Icons.admin_panel_settings_outlined,

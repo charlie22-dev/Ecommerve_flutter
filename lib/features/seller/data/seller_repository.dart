@@ -71,7 +71,7 @@ class SellerRepository {
           .from(Tables.sellerOrders)
           .select('*, stores(name)')
           .eq('order_id', orderId)
-          .order('created_at');
+          .order('created_at', ascending: true);
       return rows.map(SellerOrder.fromRow).toList();
     });
   }

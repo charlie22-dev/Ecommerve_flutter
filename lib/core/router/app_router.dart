@@ -13,6 +13,7 @@ import '../../features/admin/presentation/admin_voucher_form_screen.dart';
 import '../../features/admin/presentation/admin_vouchers_screen.dart';
 import '../../features/admin/presentation/admin_providers.dart';
 import '../../features/admin/presentation/admin_sellers_screen.dart';
+import '../../features/admin/presentation/admin_shell.dart';
 import '../../features/auth/presentation/auth_screen.dart';
 import '../../features/book_details/presentation/book_details_screen.dart';
 import '../../features/cart/presentation/cart_screen.dart';
@@ -114,43 +115,49 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) =>
             OrderConfirmationScreen(orderId: state.pathParameters['orderId']!),
       ),
-      GoRoute(path: AppRoute.admin, builder: (context, state) => const AdminDashboardScreen()),
-      GoRoute(path: AppRoute.adminProducts, builder: (context, state) => const AdminProductsScreen()),
-      GoRoute(
-        path: AppRoute.adminOrders,
-        builder: (context, state) => AdminOrdersScreen(initialStatus: state.extra as OrderStatus?),
-      ),
-      GoRoute(
-        path: AppRoute.adminVouchers,
-        builder: (context, state) => const AdminVouchersScreen(),
+      // Every /admin page shares the admin shell (a sidebar on wide screens).
+      ShellRoute(
+        builder: (context, state, child) => AdminShell(location: state.uri.path, child: child),
         routes: [
-          GoRoute(path: 'new', builder: (context, state) => const AdminVoucherFormScreen()),
+          GoRoute(path: AppRoute.admin, builder: (context, state) => const AdminDashboardScreen()),
+          GoRoute(path: AppRoute.adminProducts, builder: (context, state) => const AdminProductsScreen()),
           GoRoute(
-            path: ':id',
-            builder: (context, state) => AdminVoucherFormScreen(voucherId: state.pathParameters['id']!),
+            path: AppRoute.adminOrders,
+            builder: (context, state) => AdminOrdersScreen(initialStatus: state.extra as OrderStatus?),
           ),
+          GoRoute(
+            path: AppRoute.adminVouchers,
+            builder: (context, state) => const AdminVouchersScreen(),
+            routes: [
+              GoRoute(path: 'new', builder: (context, state) => const AdminVoucherFormScreen()),
+              GoRoute(
+                path: ':id',
+                builder: (context, state) => AdminVoucherFormScreen(voucherId: state.pathParameters['id']!),
+              ),
+            ],
+          ),
+          GoRoute(
+            path: AppRoute.adminMessages,
+            builder: (context, state) => const AdminMessagesScreen(),
+            routes: [
+              GoRoute(
+                path: ':uid',
+                builder: (context, state) => AdminConversationScreen(customerUid: state.pathParameters['uid']!),
+              ),
+            ],
+          ),
+          GoRoute(
+            path: AppRoute.adminAddProduct,
+            builder: (context, state) => const AdminProductFormScreen(),
+          ),
+          GoRoute(
+            path: '${AppRoute.adminEditProduct}/:id/edit',
+            builder: (context, state) => AdminProductFormScreen(bookId: state.pathParameters['id']!),
+          ),
+          GoRoute(path: AppRoute.adminSellers, builder: (context, state) => const AdminSellersScreen()),
+          GoRoute(path: AppRoute.adminListings, builder: (context, state) => const AdminListingsScreen()),
         ],
       ),
-      GoRoute(
-        path: AppRoute.adminMessages,
-        builder: (context, state) => const AdminMessagesScreen(),
-        routes: [
-          GoRoute(
-            path: ':uid',
-            builder: (context, state) => AdminConversationScreen(customerUid: state.pathParameters['uid']!),
-          ),
-        ],
-      ),
-      GoRoute(
-        path: AppRoute.adminAddProduct,
-        builder: (context, state) => const AdminProductFormScreen(),
-      ),
-      GoRoute(
-        path: '${AppRoute.adminEditProduct}/:id/edit',
-        builder: (context, state) => AdminProductFormScreen(bookId: state.pathParameters['id']!),
-      ),
-      GoRoute(path: AppRoute.adminSellers, builder: (context, state) => const AdminSellersScreen()),
-      GoRoute(path: AppRoute.adminListings, builder: (context, state) => const AdminListingsScreen()),
       GoRoute(path: AppRoute.seller, builder: (context, state) => const SellerCenterScreen()),
       GoRoute(path: AppRoute.sellerProducts, builder: (context, state) => const SellerProductsScreen()),
       GoRoute(path: AppRoute.sellerOrders, builder: (context, state) => const SellerOrdersScreen()),

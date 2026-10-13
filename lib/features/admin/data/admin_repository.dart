@@ -8,10 +8,11 @@ import '../../../core/services/db.dart';
 /// A customer as the admin sees them — `profiles` is readable by admins
 /// (the "profiles: read own" policy includes `or is_admin()`).
 class CustomerInfo {
-  const CustomerInfo({required this.uid, required this.name, required this.email});
+  const CustomerInfo({required this.uid, required this.name, required this.email, this.photoUrl});
   final String uid;
   final String name;
   final String email;
+  final String? photoUrl;
 
   String get label => name.isNotEmpty ? name : (email.isNotEmpty ? email : 'Customer');
 }
@@ -40,24 +41,47 @@ class ReviewListing {
   final String storeName;
 }
 
-class AdminStats {
-  const AdminStats({
-    required this.productCount,
-    required this.lowStockCount,
-    required this.ordersByStatus,
-    required this.revenue,
+/// Marketplace numbers for the dashboard's selected period.
+class AdminDashboard {
+  const AdminDashboard({
+    required this.days,
+    required this.grossSales,
+    required this.orderCount,
+    required this.commission,
     required this.customerCount,
+    required this.activeSellers,
+    required this.sales,
+    required this.categories,
   });
 
-  final int productCount;
-  final int lowStockCount;
-  final Map<OrderStatus, int> ordersByStatus;
+  final int days;
 
-  /// Sum of completed orders.
-  final double revenue;
+  /// Value of confirmed orders (COD placed or paid) — what customers spent,
+  /// not BookVerse's revenue.
+  final double grossSales;
+  final int orderCount;
+
+  /// What BookVerse keeps from other stores' sales.
+  final double commission;
   final int customerCount;
+  final int activeSellers;
 
-  int count(OrderStatus s) => ordersByStatus[s] ?? 0;
+  /// Sales per bucket (a day, or a week for long periods), oldest first.
+  final List<({DateTime start, double amount})> sales;
+
+  /// Sales per book type, biggest first.
+  final List<({String type, double amount})> categories;
+
+  double get averageOrder => orderCount == 0 ? 0 : grossSales / orderCount;
+}
+
+/// Things waiting on an admin right now, whatever the period.
+class AdminTodoCounts {
+  const AdminTodoCounts({required this.toShip, required this.lowStock});
+  final int toShip;
+
+  /// Published listings with 5 or fewer left.
+  final int lowStock;
 }
 
 /// Everything the admin panel reads/writes beyond the shopper-facing
@@ -196,7 +220,7 @@ class AdminRepository {
           .from(Tables.books)
           .select('*, stores(name)')
           .eq('listing_status', 'pending_review')
-          .order('updated_at');
+          .order('updated_at', ascending: true);
       return [
         for (final r in rows)
           ReviewListing(book: Book.fromRow(r), storeName: (r['stores'] as Map?)?['name'] as String? ?? 'Unknown store'),
@@ -242,41 +266,106 @@ class AdminRepository {
     await db.from(Tables.messages).insert({'user_id': customerUid, 'sender': 'store', 'text': text});
   }
 
-  // ------------------------------------------------------------------- stats
+  // --------------------------------------------------------------- dashboard
 
-  Stream<AdminStats> watchStats() {
+  static const _confirmed = ['toShip', 'toReceive', 'completed'];
+
+  Stream<AdminDashboard> watchDashboard(int days) {
     return watchQuery(Tables.orders, () async {
-      final books = await db.from(Tables.books).select('stock');
-      final orders = await db.from(Tables.orders).select('status, total');
-      final customers = await db.from(Tables.profiles).select('id').count();
+      final today = DateTime.now();
+      final first = DateTime(today.year, today.month, today.day).subtract(Duration(days: days - 1));
+      final since = first.toUtc().toIso8601String();
 
-      final byStatus = <OrderStatus, int>{};
-      var revenue = 0.0;
+      final orders = await db
+          .from(Tables.orders)
+          .select('id, total, created_at')
+          .inFilter('status', _confirmed)
+          .gte('created_at', since);
+      final orderIds = {for (final o in orders) o['id'] as String};
+
+      final parts = await db
+          .from(Tables.sellerOrders)
+          .select('order_id, commission_total, status, stores(is_official)')
+          .gte('created_at', since);
+      final items = await db
+          .from('order_items')
+          .select('order_id, unit_price, quantity, books(type)')
+          .gte('created_at', since);
+      final customers = await db.from(Tables.profiles).select('id').count();
+      final sellers =
+          await db.from(Tables.stores).select('id').eq('status', 'active').eq('is_official', false).count();
+
+      // Weekly buckets past a month, so bars stay readable.
+      final bucketDays = days > 31 ? 7 : 1;
+      final bucketCount = (days / bucketDays).ceil();
+      final buckets = List<double>.filled(bucketCount, 0);
+      var gross = 0.0;
       for (final o in orders) {
-        final status = OrderStatus.fromKey(o['status'] as String?);
-        byStatus[status] = (byStatus[status] ?? 0) + 1;
-        if (status == OrderStatus.completed) revenue += toDouble(o['total']);
+        final total = toDouble(o['total']);
+        gross += total;
+        final created = parseTimestamp(o['created_at']);
+        if (created == null) continue;
+        final day = DateTime(created.year, created.month, created.day).difference(first).inDays;
+        final i = (day ~/ bucketDays).clamp(0, bucketCount - 1);
+        buckets[i] += total;
       }
-      return AdminStats(
-        productCount: books.length,
-        lowStockCount: books.where((b) => toInt(b['stock']) <= lowStockThreshold).length,
-        ordersByStatus: byStatus,
-        revenue: revenue,
+
+      var commission = 0.0;
+      for (final p in parts) {
+        final official = (p['stores'] as Map?)?['is_official'] == true;
+        if (official || p['status'] == 'cancelled' || !orderIds.contains(p['order_id'])) continue;
+        commission += toDouble(p['commission_total']);
+      }
+
+      final byType = <String, double>{};
+      for (final i in items) {
+        if (!orderIds.contains(i['order_id'])) continue;
+        final type = (i['books'] as Map?)?['type'] as String? ?? 'other';
+        byType[type] = (byType[type] ?? 0) + toDouble(i['unit_price']) * toInt(i['quantity']);
+      }
+      final categories = [for (final e in byType.entries) (type: e.key, amount: e.value)]
+        ..sort((a, b) => b.amount.compareTo(a.amount));
+
+      return AdminDashboard(
+        days: days,
+        grossSales: gross,
+        orderCount: orders.length,
+        commission: commission,
         customerCount: customers.count,
+        activeSellers: sellers.count,
+        sales: [
+          for (var i = 0; i < bucketCount; i++)
+            (start: first.add(Duration(days: i * bucketDays)), amount: buckets[i]),
+        ],
+        categories: categories,
       );
+    });
+  }
+
+  Stream<AdminTodoCounts> watchTodoCounts() {
+    return watchQuery(Tables.orders, () async {
+      final toShip = await db.from(Tables.orders).select('id').eq('status', 'toShip').count();
+      final lowStock = await db
+          .from(Tables.books)
+          .select('id')
+          .eq('listing_status', 'published')
+          .lte('stock', lowStockThreshold)
+          .count();
+      return AdminTodoCounts(toShip: toShip.count, lowStock: lowStock.count);
     });
   }
 
   Future<Map<String, CustomerInfo>> _customers(Iterable<String> uids) async {
     final ids = uids.toSet().toList();
     if (ids.isEmpty) return const {};
-    final rows = await db.from(Tables.profiles).select('id, display_name, email').inFilter('id', ids);
+    final rows = await db.from(Tables.profiles).select('id, display_name, email, photo_url').inFilter('id', ids);
     return {
       for (final r in rows)
         r['id'] as String: CustomerInfo(
           uid: r['id'] as String,
           name: r['display_name'] as String? ?? '',
           email: r['email'] as String? ?? '',
+          photoUrl: r['photo_url'] as String?,
         ),
     };
   }

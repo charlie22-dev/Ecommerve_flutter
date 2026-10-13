@@ -199,6 +199,10 @@ select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000
 set local role authenticated;
 do $$ begin
   begin
+    insert into public.seller_applications (user_id, store_name) values (auth.uid(), 'Admin Store');
+    raise exception 'FAIL 4: an admin applied to be a seller';
+  exception when others then if sqlerrm like 'FAIL%' then raise; end if; end;
+  begin
     perform public.review_seller_application(
       (select id from public.seller_applications where user_id = '00000000-0000-0000-0000-0000000000b2'), false, '');
     raise exception 'FAIL 4: rejected without a reason';

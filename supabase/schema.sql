@@ -300,13 +300,15 @@ alter table public.seller_applications enable row level security;
 drop policy if exists "seller_applications: read own or admin" on public.seller_applications;
 create policy "seller_applications: read own or admin" on public.seller_applications
   for select using (user_id = auth.uid() or public.is_admin());
--- Apply for yourself, as pending, and only if you don't already have a store.
+-- Apply for yourself, as pending, only if you don't already have a store,
+-- and not as an admin (admins would be approving their own listings).
 drop policy if exists "seller_applications: apply" on public.seller_applications;
 create policy "seller_applications: apply" on public.seller_applications
   for insert with check (
     user_id = auth.uid() and status = 'pending'
     and admin_note is null and reviewed_by is null and reviewed_at is null
     and not exists (select 1 from public.stores where owner_id = auth.uid())
+    and not public.is_admin()
   );
 revoke update, delete on public.seller_applications from anon, authenticated;
 

@@ -9,6 +9,8 @@ import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/status_chip.dart';
 import '../../../core/widgets/text_prompt_dialog.dart';
 import 'admin_providers.dart';
+import 'admin_shell.dart';
+import 'widgets/admin_table.dart';
 
 /// Seller applications to approve/reject, and stores to suspend/reinstate.
 /// Every decision is recorded in the audit log by the server.
@@ -57,11 +59,18 @@ class _Applications extends ConsumerWidget {
             if (apps.isEmpty) {
               return const EmptyState(icon: Icons.storefront_outlined, title: 'No applications yet');
             }
-            return ListView.separated(
-              padding: const EdgeInsets.all(20),
-              itemCount: apps.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 12),
-              itemBuilder: (context, i) => _ApplicationCard(app: apps[i]),
+            // Cards, not a table: reviewing means reading the description.
+            return Align(
+              alignment: Alignment.topLeft,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 760),
+                child: ListView.separated(
+                  padding: EdgeInsets.all(AdminShell.isWide(context) ? 28 : 20),
+                  itemCount: apps.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 12),
+                  itemBuilder: (context, i) => _ApplicationCard(app: apps[i]),
+                ),
+              ),
             );
           },
           loading: () => Center(child: CircularProgressIndicator(color: colors.ink)),
@@ -204,6 +213,49 @@ class _Stores extends ConsumerWidget {
                 message: 'Approved applications show up here.',
               );
             }
+            if (AdminShell.isWide(context)) {
+              return SingleChildScrollView(
+                padding: const EdgeInsets.all(28),
+                child: AdminTable(
+                  columns: const [
+                    DataColumn(label: Text('STORE')),
+                    DataColumn(label: Text('CONTACT')),
+                    DataColumn(label: Text('JOINED')),
+                    DataColumn(label: Text('COMMISSION'), numeric: true),
+                    DataColumn(label: Text('STATUS')),
+                    DataColumn(label: Text('ACTION')),
+                  ],
+                  rows: [
+                    for (final store in stores)
+                      adminRow(
+                        context,
+                        cells: [
+                          DataCell(TwoLineCell(store.name, store.description, leading: InitialAvatar(store.name))),
+                          DataCell(TwoLineCell(store.contactEmail, store.contactPhone)),
+                          DataCell(Text(store.createdAt == null ? '—' : DateFormat.yMMMd().format(store.createdAt!))),
+                          DataCell(Text(store.commissionRate == null
+                              ? 'Default'
+                              : '${(store.commissionRate! * 100).toStringAsFixed(1)}%')),
+                          DataCell(StatusChip(
+                            label: store.isActive ? 'Active' : 'Suspended',
+                            color: store.isActive ? colors.success : colors.error,
+                          )),
+                          DataCell(TextButton(
+                            onPressed: () => _toggle(context, ref, store),
+                            child: Text(
+                              store.isActive ? 'Suspend' : 'Reinstate',
+                              style: TextStyle(
+                                color: store.isActive ? colors.error : colors.textPrimary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          )),
+                        ],
+                      ),
+                  ],
+                ),
+              );
+            }
             return ListView.separated(
               padding: const EdgeInsets.all(20),
               itemCount: stores.length,
@@ -224,9 +276,8 @@ class _Stores extends ConsumerWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 4),
-                    Text('${store.contactEmail} · ${store.contactPhone}',
-                        style: TextStyle(color: colors.textSecondary, fontSize: 12)),
+                    const SizedBox(height: 8),
+                    TwoLineCell(store.contactEmail, store.contactPhone, leading: InitialAvatar(store.name)),
                     if (store.commissionRate != null)
                       Text('Commission ${(store.commissionRate! * 100).toStringAsFixed(1)}%',
                           style: TextStyle(color: colors.textTertiary, fontSize: 12)),

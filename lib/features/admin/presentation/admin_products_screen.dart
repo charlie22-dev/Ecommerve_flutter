@@ -7,9 +7,12 @@ import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_color_tokens.dart';
 import '../../../core/widgets/book_cover_image.dart';
 import '../../../core/widgets/empty_state.dart';
+import '../../../core/widgets/status_chip.dart';
 import '../data/admin_repository.dart';
 import 'admin_product_controller.dart';
 import 'admin_providers.dart';
+import 'admin_shell.dart';
+import 'widgets/admin_table.dart';
 
 /// Every product in the catalog, newest first — search, quick restock,
 /// edit (tap) and delete.
@@ -20,6 +23,8 @@ class AdminProductsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.colors;
     final productsAsync = ref.watch(adminProductsProvider);
+    final wide = AdminShell.isWide(context);
+    final pad = wide ? 28.0 : 20.0;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Products')),
@@ -33,14 +38,10 @@ class AdminProductsScreen extends ConsumerWidget {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
-            child: TextField(
+            padding: EdgeInsets.fromLTRB(pad, 4, pad, 8),
+            child: AdminSearchField(
+              hint: 'Search title, author or ISBN',
               onChanged: (v) => ref.read(adminProductSearchProvider.notifier).state = v,
-              style: TextStyle(color: colors.textPrimary),
-              decoration: const InputDecoration(
-                hintText: 'Search title, author or ISBN',
-                prefixIcon: Icon(Icons.search_rounded),
-              ),
             ),
           ),
           Expanded(
@@ -53,8 +54,24 @@ class AdminProductsScreen extends ConsumerWidget {
                     message: 'Tap "Add Product" to create your first listing.',
                   );
                 }
+                if (wide) {
+                  return SingleChildScrollView(
+                    padding: EdgeInsets.fromLTRB(pad, 4, pad, 96),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${books.length} product${books.length == 1 ? '' : 's'}',
+                          style: TextStyle(color: colors.textTertiary, fontSize: 12),
+                        ),
+                        const SizedBox(height: 8),
+                        _ProductsTable(books: books),
+                      ],
+                    ),
+                  );
+                }
                 return ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 96),
+                  padding: EdgeInsets.fromLTRB(pad, 4, pad, 96),
                   itemCount: books.length + 1,
                   separatorBuilder: (_, _) => const SizedBox(height: 10),
                   itemBuilder: (context, i) {
@@ -78,24 +95,116 @@ class AdminProductsScreen extends ConsumerWidget {
   }
 }
 
-class _ProductTile extends ConsumerWidget {
-  const _ProductTile({required this.book});
-  final Book book;
+Future<void> _deleteProduct(BuildContext context, WidgetRef ref, Book book) async {
+  final ok = await confirmDeleteProduct(context, book.title);
+  if (!ok || !context.mounted) return;
+  final deleted = await ref.read(adminProductControllerProvider.notifier).delete(book);
+  if (!context.mounted) return;
+  ScaffoldMessenger.of(context)
+      .showSnackBar(SnackBar(content: Text(deleted ? 'Deleted "${book.title}"' : 'Could not delete this product.')));
+}
 
-  Future<void> _delete(BuildContext context, WidgetRef ref) async {
-    final ok = await confirmDeleteProduct(context, book.title);
-    if (!ok || !context.mounted) return;
-    final deleted = await ref.read(adminProductControllerProvider.notifier).delete(book);
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(deleted ? 'Deleted "${book.title}"' : 'Could not delete this product.')),
-    );
-  }
+/// Out of stock = error, low = orange, otherwise normal text.
+Color _stockColor(Book book, AppColorTokens colors) => book.stock == 0
+    ? colors.error
+    : book.stock <= AdminRepository.lowStockThreshold
+    ? colors.accentOrange
+    : colors.textSecondary;
+
+class _ProductsTable extends ConsumerWidget {
+  const _ProductsTable({required this.books});
+  final List<Book> books;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.colors;
-    final low = book.stock <= AdminRepository.lowStockThreshold;
+    final repo = ref.read(adminRepositoryProvider);
+    return AdminTable(
+      columns: const [
+        DataColumn(label: Text('PRODUCT')),
+        DataColumn(label: Text('TYPE')),
+        DataColumn(label: Text('PRICE'), numeric: true),
+        DataColumn(label: Text('STOCK')),
+        DataColumn(label: Text('STATUS')),
+        DataColumn(label: Text('ACTIONS')),
+      ],
+      rows: [
+        for (final book in books)
+          () {
+            final (label, color) = listingStatusStyle(book.listingStatus, colors);
+            void edit() => context.push('${AppRoute.adminEditProduct}/${book.id}/edit');
+            return adminRow(
+              context,
+              onTap: edit,
+              cells: [
+                DataCell(
+                  TwoLineCell(
+                    book.title,
+                    book.author,
+                    leading: SizedBox(
+                      width: 32,
+                      height: 48,
+                      child: BookCoverImage(url: book.coverUrl, borderRadius: 6),
+                    ),
+                  ),
+                ),
+                DataCell(Text(book.type.label)),
+                DataCell(
+                  Text('₱${book.price.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w700)),
+                ),
+                DataCell(
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _StockButton(
+                        icon: Icons.remove_rounded,
+                        onTap: book.stock > 0 ? () => repo.setStock(book.id, book.stock - 1) : null,
+                      ),
+                      SizedBox(
+                        width: 44,
+                        child: Text(
+                          '${book.stock}',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: _stockColor(book, colors), fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                      _StockButton(icon: Icons.add_rounded, onTap: () => repo.setStock(book.id, book.stock + 1)),
+                    ],
+                  ),
+                ),
+                DataCell(StatusChip(label: label, color: color)),
+                DataCell(
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        tooltip: 'Edit',
+                        onPressed: edit,
+                        icon: Icon(Icons.edit_outlined, size: 20, color: colors.textPrimary),
+                      ),
+                      IconButton(
+                        tooltip: 'Delete',
+                        onPressed: () => _deleteProduct(context, ref, book),
+                        icon: Icon(Icons.delete_outline_rounded, size: 20, color: colors.error),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          }(),
+      ],
+    );
+  }
+}
+
+class _ProductTile extends ConsumerWidget {
+  const _ProductTile({required this.book});
+  final Book book;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colors = context.colors;
     final repo = ref.read(adminRepositoryProvider);
 
     return InkWell(
@@ -134,14 +243,20 @@ class _ProductTile extends ConsumerWidget {
                         icon: Icons.remove_rounded,
                         onTap: book.stock > 0 ? () => repo.setStock(book.id, book.stock - 1) : null,
                       ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        child: Text(
-                          book.stock == 0 ? 'Out of stock' : '${book.stock} in stock',
-                          style: TextStyle(
-                            color: low ? colors.error : colors.textSecondary,
-                            fontWeight: low ? FontWeight.w700 : FontWeight.w500,
-                            fontSize: 12,
+                      Flexible(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: Text(
+                            book.stock == 0 ? 'Out of stock' : '${book.stock} in stock',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: _stockColor(book, colors),
+                              fontWeight: book.stock <= AdminRepository.lowStockThreshold
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                              fontSize: 12,
+                            ),
                           ),
                         ),
                       ),
@@ -155,11 +270,14 @@ class _ProductTile extends ConsumerWidget {
               icon: Icon(Icons.more_vert_rounded, color: colors.textTertiary),
               onSelected: (action) {
                 if (action == 'edit') context.push('${AppRoute.adminEditProduct}/${book.id}/edit');
-                if (action == 'delete') _delete(context, ref);
+                if (action == 'delete') _deleteProduct(context, ref, book);
               },
               itemBuilder: (context) => [
                 const PopupMenuItem(value: 'edit', child: Text('Edit')),
-                PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: colors.error))),
+                PopupMenuItem(
+                  value: 'delete',
+                  child: Text('Delete', style: TextStyle(color: colors.error)),
+                ),
               ],
             ),
           ],
@@ -183,7 +301,10 @@ class _StockButton extends StatelessWidget {
       child: Container(
         width: 26,
         height: 26,
-        decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: colors.border)),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: colors.border),
+        ),
         child: Icon(icon, size: 16, color: onTap == null ? colors.textTertiary : colors.textPrimary),
       ),
     );

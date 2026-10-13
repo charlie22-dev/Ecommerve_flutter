@@ -4,7 +4,7 @@ import '../../../core/services/db.dart';
 class MessageRepository {
   Stream<List<StoreMessage>> watchThread(String uid) {
     return watchQuery(Tables.messages, () async {
-      final rows = await db.from(Tables.messages).select().eq('user_id', uid).order('created_at');
+      final rows = await db.from(Tables.messages).select().eq('user_id', uid).order('created_at', ascending: true);
       return rows.map(StoreMessage.fromRow).toList();
     });
   }
