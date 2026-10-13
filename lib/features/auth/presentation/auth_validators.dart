@@ -13,6 +13,8 @@ abstract final class AuthValidators {
     return null;
   }
 
+  /// Returns an error string if [value] is empty or shorter than 6 characters
+  /// (Supabase Auth's minimum); returns null when the value is valid.
   static String? password(String? value) {
     if (value == null || value.isEmpty) return 'Enter your password';
     if (value.length < 6) return 'At least 6 characters';
