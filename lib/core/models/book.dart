@@ -54,9 +54,10 @@ enum BookFormat {
       };
 }
 
-/// Curated genre chip options for the admin product form — `Book.genres`
-/// itself stays a free-form string list so nothing else has to change if
-/// this list grows.
+/// Curated genre chip options for the admin/seller product form.
+/// Kept as a plain list (not an enum) so new genres can be added in the
+/// dashboard without touching the Dart code — `Book.genres` itself is a
+/// free-form string list and imposes no restrictions.
 const kGenreOptions = <String>[
   'Romance',
   'Fantasy',
