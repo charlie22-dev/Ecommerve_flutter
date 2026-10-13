@@ -23,6 +23,8 @@ class ShippingAddress extends Equatable {
   final String postalCode;
   final bool isDefault;
 
+  /// Convenience getter that joins the address parts into one display string,
+  /// e.g. "123 Main St, Manila, Metro Manila, 1000".
   String get fullAddress => '$addressLine, $city, $province, $postalCode';
 
   factory ShippingAddress.fromRow(Map<String, dynamic> row) {
