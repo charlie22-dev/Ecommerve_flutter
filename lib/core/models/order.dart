@@ -66,6 +66,7 @@ class OrderLineItem extends Equatable {
   final double unitPrice;
   final int quantity;
 
+  /// Total price for this line: [unitPrice] × [quantity].
   double get lineTotal => unitPrice * quantity;
 
   factory OrderLineItem.fromMap(Map<String, dynamic> map) => OrderLineItem(
