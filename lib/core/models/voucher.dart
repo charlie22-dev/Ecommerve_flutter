@@ -2,6 +2,8 @@ import 'package:equatable/equatable.dart';
 
 import '../services/db.dart';
 
+/// Whether the voucher shaves a percentage off the subtotal ([percent])
+/// or deducts a fixed peso amount ([fixed]).
 enum DiscountType {
   percent,
   fixed;
