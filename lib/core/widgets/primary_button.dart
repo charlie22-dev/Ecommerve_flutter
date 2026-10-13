@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_color_tokens.dart';
 
+/// Full-width elevated button used for primary call-to-action actions.
+/// Shows a [CircularProgressIndicator] while [isLoading] is true and
+/// disables [onPressed] to prevent double-submits.
 class PrimaryButton extends StatelessWidget {
   const PrimaryButton({
     super.key,
