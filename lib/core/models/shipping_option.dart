@@ -14,6 +14,7 @@ class ShippingOption {
 
   static const all = [standard, express];
 
+  /// Orders at or above this peso amount qualify for free standard shipping.
   static const freeShippingThreshold = 1500.0;
 
   static ShippingOption fromId(String id) => all.firstWhere((o) => o.id == id, orElse: () => standard);
