@@ -21,6 +21,8 @@ enum NotificationCategory {
       };
 }
 
+/// An in-app notification row shown on the Notifications screen.
+/// Tapping one with a [relatedOrderId] navigates to that order's detail page.
 class AppNotification extends Equatable {
   const AppNotification({
     required this.id,
