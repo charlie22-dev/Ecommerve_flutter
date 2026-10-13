@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_color_tokens.dart';
 
+/// A section heading row with an optional trailing "See all" affordance.
+/// Used by catalog rails, the library screen, and similar list-of-cards layouts.
 class SectionHeader extends StatelessWidget {
   const SectionHeader({super.key, required this.title, this.actionLabel, this.onAction});
 
