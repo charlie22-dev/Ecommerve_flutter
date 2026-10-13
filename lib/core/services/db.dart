@@ -17,6 +17,10 @@ abstract final class Tables {
   static const reviews = 'reviews';
   static const notifications = 'notifications';
   static const messages = 'messages';
+  static const stores = 'stores';
+  static const sellerApplications = 'seller_applications';
+  static const sellerOrders = 'seller_orders';
+  static const platformSettings = 'platform_settings';
 }
 
 SupabaseClient get db => Supabase.instance.client;
@@ -85,3 +89,7 @@ Stream<T> watchQuery<T>(String table, Future<T> Function() fetch) {
   );
   return controller.stream;
 }
+
+/// Errors raised by our Postgres functions (`raise exception '...'`) are
+/// written for people, so show those as-is.
+String errorMessage(Object e) => e is PostgrestException ? e.message : e.toString();

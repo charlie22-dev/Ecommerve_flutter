@@ -32,6 +32,8 @@ void main() {
       'tags': <String>[],
       'featured_sections': ['trending', 'notARealSection'],
       'total_chapters': null,
+      'listing_status': 'rejected',
+      'moderation_note': 'Blurry cover',
       'created_at': '2026-10-06T01:02:03.123456+00:00',
       'updated_at': '2026-10-06T01:02:03.123456+00:00',
     };
@@ -51,6 +53,8 @@ void main() {
     expect(out['type'], 'lightNovel');
     expect(out['release_date'], '2003-01-01');
     expect(out['featured_sections'], ['trending']);
+    expect(book.moderationNote, 'Blurry cover');
+    expect(out['listing_status'], 'rejected');
     expect(out.containsKey('id'), isFalse, reason: 'id/created_at are DB defaults');
   });
 

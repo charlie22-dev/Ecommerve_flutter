@@ -28,9 +28,9 @@ class AppUser extends Equatable {
   final int booksCompletedCount;
   final DateTime? createdAt;
 
-  /// Grants access to the admin product form. Only settable by an existing
-  /// admin or from the Supabase SQL editor — see the `profiles_guard_admin`
-  /// trigger in supabase/schema.sql.
+  /// Shows the Admin Panel. A read-only mirror of the user's admin /
+  /// super_admin role in `user_roles` (supabase/schema.sql); the database
+  /// enforces admin rights itself, this only drives the UI.
   final bool isAdmin;
 
   /// Profiles rows are created server-side by the `on_auth_user_created`

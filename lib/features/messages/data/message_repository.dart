@@ -15,17 +15,10 @@ class MessageRepository {
         .insert(StoreMessage(id: '', uid: uid, sender: MessageSender.user, text: text).toRow());
   }
 
-  /// A one-time canned welcome — not a live reply — written client-side the
+  /// A one-time canned welcome — not a live reply — posted by the
+  /// `send_store_welcome` function (customers can't post as the store) the
   /// first time a user opens an empty thread. See store_message.dart.
   Future<void> sendStoreWelcome(String uid) async {
-    await db.from(Tables.messages).insert(
-          StoreMessage(
-            id: '',
-            uid: uid,
-            sender: MessageSender.store,
-            text: "Hi! You're messaging BookVerse Store. We usually reply within 24 hours — let us know if you need "
-                "a hand with an order, a book request, or anything else.",
-          ).toRow(),
-        );
+    await db.rpc('send_store_welcome');
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models/book.dart';
+import '../../../core/models/store.dart';
 import '../../../core/models/store_message.dart';
 import '../../../core/models/voucher.dart';
 import '../../auth/presentation/auth_providers.dart';
@@ -46,4 +47,16 @@ final adminThreadMessagesProvider = StreamProvider.autoDispose.family<List<Store
 
 final adminCustomerProvider = FutureProvider.autoDispose.family<CustomerInfo?, String>((ref, uid) {
   return ref.watch(adminRepositoryProvider).customer(uid);
+});
+
+final adminApplicationsProvider = StreamProvider.autoDispose<List<SellerApplication>>((ref) {
+  return ref.watch(adminRepositoryProvider).watchApplications();
+});
+
+final adminStoresProvider = StreamProvider.autoDispose<List<Store>>((ref) {
+  return ref.watch(adminRepositoryProvider).watchStores();
+});
+
+final adminListingReviewProvider = StreamProvider.autoDispose<List<ReviewListing>>((ref) {
+  return ref.watch(adminRepositoryProvider).watchListingsForReview();
 });

@@ -112,6 +112,8 @@ class Book extends Equatable {
     this.tags = const [],
     this.featuredSections = const [],
     this.totalChapters,
+    this.listingStatus = 'published',
+    this.moderationNote,
     this.createdAt,
     this.updatedAt,
   });
@@ -140,6 +142,14 @@ class Book extends Equatable {
   /// a library entry; null means progress is tracked as a raw page count
   /// instead of a chapter fraction.
   final int? totalChapters;
+
+  /// draft · pending_review · published · rejected · suspended · archived.
+  /// Only `published` listings appear in the store; sellers can't publish
+  /// their own (the `guard_book_write` trigger in supabase/schema.sql).
+  final String listingStatus;
+
+  /// The admin's reason when a listing is rejected or suspended.
+  final String? moderationNote;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -168,6 +178,8 @@ class Book extends Equatable {
       featuredSections:
           stringList(row['featured_sections']).map(FeaturedSection.fromKey).whereType<FeaturedSection>().toList(),
       totalChapters: (row['total_chapters'] as num?)?.toInt(),
+      listingStatus: row['listing_status'] as String? ?? 'published',
+      moderationNote: row['moderation_note'] as String?,
       createdAt: parseTimestamp(row['created_at']),
       updatedAt: parseTimestamp(row['updated_at']),
     );
@@ -195,6 +207,7 @@ class Book extends Equatable {
         'tags': tags,
         'featured_sections': featuredSections.map((s) => s.name).toList(),
         'total_chapters': totalChapters,
+        'listing_status': listingStatus,
       };
 
   Book copyWith({
@@ -218,6 +231,7 @@ class Book extends Equatable {
     List<String>? tags,
     List<FeaturedSection>? featuredSections,
     int? totalChapters,
+    String? listingStatus,
   }) {
     return Book(
       id: id ?? this.id,
@@ -240,11 +254,13 @@ class Book extends Equatable {
       tags: tags ?? this.tags,
       featuredSections: featuredSections ?? this.featuredSections,
       totalChapters: totalChapters ?? this.totalChapters,
+      listingStatus: listingStatus ?? this.listingStatus,
+      moderationNote: moderationNote,
       createdAt: createdAt,
       updatedAt: updatedAt,
     );
   }
 
   @override
-  List<Object?> get props => [id, title, author, coverUrl, price, stock, rating];
+  List<Object?> get props => [id, title, author, coverUrl, price, stock, rating, listingStatus, moderationNote];
 }

@@ -22,6 +22,14 @@ all user data (Postgres), images (Storage), and live updates (Realtime).
 Check: **Table Editor** should list `books`, `profiles`, `orders`, … and
 **Storage** should show the `avatars`, `book-covers` and `review-photos` buckets.
 
+**Updating an existing project:** whenever `schema.sql` changes, paste and run
+the whole file again. It's written to be re-run safely and keeps your data.
+
+**Security tests (optional):** paste all of `supabase/tests/marketplace_rls_test.sql`
+into a new query and **Run**. It checks roles, seller approval, checkout pricing,
+stock and privacy as real customer/seller/admin sessions, then rolls everything
+back. You should see `ALL MARKETPLACE TESTS PASSED`.
+
 ## 3. Put your keys in the app
 
 1. Left sidebar → **Project Settings** → **API Keys** (or click **Connect** at the top).
@@ -59,9 +67,30 @@ Cloud Console / Meta for Developers. On their side, set the authorized redirect 
 1. Run the app and sign up with your own email.
 2. **SQL Editor** → run:
    ```sql
-   update public.profiles set is_admin = true where email = 'you@example.com';
+   insert into public.user_roles (user_id, role)
+   select id, 'super_admin' from auth.users where email = 'you@example.com';
    ```
-3. Restart the app. You now get the admin product form and can advance orders.
+3. Restart the app. You now get the Admin Panel (Profile tab), can approve
+   sellers, and can advance orders.
+
+Roles live in `user_roles` (`seller`, `admin`, `super_admin`); the app can read
+them but never write them.
+
+**Seller flow:** a user taps **Profile → Become a Seller** and applies. An admin
+approves or rejects it in **Admin Panel → Sellers**, which opens their store.
+The seller adds listings in **Profile → Seller Center**. An admin approves those
+in **Admin Panel → Listing review**, and only then do they appear in the store.
+When someone buys, each store ships its own items from **Seller Center → Orders**
+(Confirm → Ship with courier + tracking → Delivered). The buyer sees each
+shipment's tracking under **Order Details**. A super admin can grant or
+revoke admin rights with `select set_user_role('<user id>', 'admin', true);`.
+
+Products created by admins go to the **BookVerse Official** store, already
+published. Sellers' products start as `pending_review` and only appear in the
+store after an admin sets `listing_status` to `published`.
+
+The platform commission rate is in **Table Editor → platform_settings** (0.10 =
+10%). Each order item keeps the rate it was sold at.
 
 ## 6. Adding products
 

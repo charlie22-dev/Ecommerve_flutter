@@ -1,5 +1,6 @@
 import '../../../core/models/book.dart';
 import '../../../core/models/order.dart';
+import '../../../core/models/store.dart';
 import '../../../core/models/store_message.dart';
 import '../../../core/models/voucher.dart';
 import '../../../core/services/db.dart';
@@ -30,6 +31,13 @@ class AdminThread {
   /// The customer spoke last — the store hasn't answered yet.
   bool get needsReply => awaitingReply;
   final bool awaitingReply;
+}
+
+/// A listing waiting for review, with the store that submitted it.
+class ReviewListing {
+  const ReviewListing({required this.book, required this.storeName});
+  final Book book;
+  final String storeName;
 }
 
 class AdminStats {
@@ -140,6 +148,65 @@ class AdminRepository {
 
   Future<void> deleteVoucher(String id) async {
     await db.from(Tables.vouchers).delete().eq('id', id);
+  }
+
+  // ----------------------------------------------------------------- sellers
+  // Approvals, suspensions and moderation run as audited server functions
+  // (supabase/schema.sql) — the admin can't flip these columns directly.
+
+  /// Pending applications first, then the newest reviewed ones.
+  Stream<List<SellerApplication>> watchApplications() {
+    return watchQuery(Tables.sellerApplications, () async {
+      final rows = await db.from(Tables.sellerApplications).select().order('created_at', ascending: false);
+      final apps = rows.map(SellerApplication.fromRow).toList();
+      apps.sort((a, b) => (a.status == 'pending' ? 0 : 1).compareTo(b.status == 'pending' ? 0 : 1));
+      return apps;
+    });
+  }
+
+  Future<void> reviewApplication(String id, {required bool approve, String? note}) async {
+    await db.rpc('review_seller_application', params: {
+      'p_application_id': id,
+      'p_approve': approve,
+      'p_note': note,
+    });
+  }
+
+  /// Seller stores (not the official one).
+  Stream<List<Store>> watchStores() {
+    return watchQuery(Tables.stores, () async {
+      final rows =
+          await db.from(Tables.stores).select().eq('is_official', false).order('created_at', ascending: false);
+      return rows.map(Store.fromRow).toList();
+    });
+  }
+
+  Future<void> setStoreStatus(String storeId, {required bool active, required String reason}) async {
+    await db.rpc('set_store_status', params: {
+      'p_store_id': storeId,
+      'p_status': active ? 'active' : 'suspended',
+      'p_reason': reason,
+    });
+  }
+
+  /// Oldest first, so sellers are served in order.
+  Stream<List<ReviewListing>> watchListingsForReview() {
+    return watchQuery(Tables.books, () async {
+      final rows = await db
+          .from(Tables.books)
+          .select('*, stores(name)')
+          .eq('listing_status', 'pending_review')
+          .order('updated_at');
+      return [
+        for (final r in rows)
+          ReviewListing(book: Book.fromRow(r), storeName: (r['stores'] as Map?)?['name'] as String? ?? 'Unknown store'),
+      ];
+    });
+  }
+
+  /// [status]: published, rejected or suspended (the last two need a note).
+  Future<void> moderateListing(String bookId, String status, {String? note}) async {
+    await db.rpc('moderate_listing', params: {'p_book_id': bookId, 'p_status': status, 'p_note': note});
   }
 
   // ---------------------------------------------------------------- messages

@@ -1,8 +1,5 @@
-import 'package:uuid/uuid.dart';
-
 import '../../../core/models/app_notification.dart';
 import '../../../core/models/order.dart';
-import '../../../core/models/shipping_address.dart';
 import '../../../core/services/db.dart';
 import '../../notifications/data/notification_repository.dart';
 
@@ -12,48 +9,42 @@ class OrderRepository {
 
   final NotificationRepository _notifications;
 
-  /// Creates an order the client owns, in `pending` (online payment methods
-  /// — never resolves further without a real payment backend) or `toShip`
-  /// (Cash on Delivery, no payment gate needed), as enforced by the
-  /// "orders: create own" policy. Only an admin may advance it past that.
-  Future<String> createOrder({
+  /// Places an order through the `place_order` Postgres function, which
+  /// prices it from the database (books, voucher, shipping), takes the stock
+  /// and splits it per seller. The app only sends what and how many — any
+  /// price it computed is for display. Retrying with the same
+  /// [idempotencyKey] returns the first order instead of a duplicate.
+  Future<({String id, double total})> createOrder({
     required String uid,
     required List<OrderLineItem> items,
-    required double subtotal,
-    required double shippingCost,
+    required String addressId,
     required String shippingOptionId,
-    required ShippingAddress? shippingAddress,
     required PaymentMethod paymentMethod,
+    required String idempotencyKey,
     String? voucherCode,
-    double voucherDiscount = 0,
   }) async {
-    final total = (subtotal + shippingCost - voucherDiscount).clamp(0, double.infinity).toDouble();
-    final id = const Uuid().v4();
-    final order = Order(
-      id: id,
-      uid: uid,
-      items: items,
-      subtotal: subtotal,
-      shippingCost: shippingCost,
-      voucherCode: voucherCode,
-      voucherDiscount: voucherDiscount,
-      total: total,
-      shippingAddress: shippingAddress,
-      shippingOptionId: shippingOptionId,
-      status: paymentMethod == PaymentMethod.cashOnDelivery ? OrderStatus.toShip : OrderStatus.pending,
-      paymentMethod: paymentMethod,
-    );
-    await db.from(Tables.orders).insert(order.toRow());
+    final result = await db.rpc('place_order', params: {
+      'p_items': [
+        for (final i in items) {'book_id': i.bookId, 'quantity': i.quantity},
+      ],
+      'p_address_id': addressId,
+      'p_shipping_option_id': shippingOptionId,
+      'p_payment_method': paymentMethod.name,
+      'p_voucher_code': voucherCode,
+      'p_idempotency_key': idempotencyKey,
+    });
+    final row = Map<String, dynamic>.from(result as Map);
+    final id = row['id'] as String;
     await _notifications.create(
       userId: uid,
       category: NotificationCategory.orderUpdate,
       title: 'Order placed',
-      body: order.status == OrderStatus.toShip
+      body: paymentMethod == PaymentMethod.cashOnDelivery
           ? 'Your order #${_shortId(id)} is confirmed and will be shipped soon.'
           : 'Your order #${_shortId(id)} is awaiting payment confirmation.',
       relatedOrderId: id,
     );
-    return id;
+    return (id: id, total: toDouble(row['total']));
   }
 
   Stream<Order?> watchOrder(String orderId) {

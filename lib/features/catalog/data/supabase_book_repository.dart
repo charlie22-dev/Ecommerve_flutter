@@ -9,6 +9,7 @@ class SupabaseBookRepository implements BookRepository {
       final rows = await db
           .from(Tables.books)
           .select()
+          .eq('listing_status', 'published')
           .contains('featured_sections', [section.name])
           .order('created_at', ascending: false)
           .limit(limit);
@@ -23,7 +24,9 @@ class SupabaseBookRepository implements BookRepository {
     // Characters with meaning inside a PostgREST `or=(...)` filter.
     final search = searchQuery?.trim().replaceAll(RegExp(r'[,()%*\\]'), ' ').trim();
     return watchQuery(Tables.books, () async {
-      var query = db.from(Tables.books).select();
+      // RLS also returns a seller's own drafts and everything to admins;
+      // the storefront shows only what shoppers can buy.
+      var query = db.from(Tables.books).select().eq('listing_status', 'published');
       if (type != null) query = query.eq('type', type.name);
       if (search != null && search.isNotEmpty) {
         query = query.or('title.ilike.%$search%,author.ilike.%$search%');

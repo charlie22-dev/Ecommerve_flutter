@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
+import 'package:uuid/uuid.dart';
 
 import '../../../core/models/order.dart';
 import '../../../core/models/shipping_option.dart';
@@ -78,46 +79,41 @@ class CheckoutController extends AsyncNotifier<void> {
         .toList();
   }
 
-  ({double subtotal, double shippingCost, double voucherDiscount}) _totals(
-    List<OrderLineItem> items,
-    ShippingOption shipping,
-  ) {
-    final subtotal = items.fold<double>(0, (sum, i) => sum + i.lineTotal);
-    final voucher = ref.read(appliedVoucherProvider);
-    final voucherDiscount = voucher?.discountFor(subtotal) ?? 0;
-    return (subtotal: subtotal, shippingCost: shipping.costFor(subtotal), voucherDiscount: voucherDiscount);
+  /// One key per checkout attempt, so a retry after a lost response gets
+  /// the same order back instead of a second one. Cleared once it succeeds.
+  String? _idempotencyKey;
+
+  /// Places the order server-side (see OrderRepository.createOrder). The
+  /// returned total is the amount to charge — never the one shown on screen.
+  Future<({String id, double total})> _placeOrder(PaymentMethod method) async {
+    final uid = ref.read(authStateProvider).value?.uid;
+    if (uid == null) throw const _CheckoutError('You must be signed in.');
+
+    final items = await _lineItems();
+    if (items.isEmpty) throw const _CheckoutError('Your cart is empty.');
+
+    final address = ref.read(selectedAddressProvider);
+    if (address == null) throw const _CheckoutError('Add a shipping address first.');
+
+    final order = await ref.read(orderRepositoryProvider).createOrder(
+          uid: uid,
+          items: items,
+          addressId: address.id,
+          shippingOptionId: ref.read(selectedShippingOptionProvider).id,
+          paymentMethod: method,
+          voucherCode: ref.read(appliedVoucherProvider)?.code,
+          idempotencyKey: _idempotencyKey ??= const Uuid().v4(),
+        );
+    _idempotencyKey = null;
+    return order;
   }
 
   Future<CheckoutResult> payWithCashOnDelivery() async {
     state = const AsyncLoading();
     try {
-      final uid = ref.read(authStateProvider).value?.uid;
-      if (uid == null) return const CheckoutFailed('You must be signed in.');
-
-      final items = await _lineItems();
-      if (items.isEmpty) return const CheckoutFailed('Your cart is empty.');
-
-      final address = ref.read(selectedAddressProvider);
-      if (address == null) return const CheckoutFailed('Add a shipping address first.');
-
-      final shipping = ref.read(selectedShippingOptionProvider);
-      final totals = _totals(items, shipping);
-      final voucher = ref.read(appliedVoucherProvider);
-
-      final orderId = await ref.read(orderRepositoryProvider).createOrder(
-            uid: uid,
-            items: items,
-            subtotal: totals.subtotal,
-            shippingCost: totals.shippingCost,
-            shippingOptionId: shipping.id,
-            shippingAddress: address,
-            paymentMethod: PaymentMethod.cashOnDelivery,
-            voucherCode: voucher?.code,
-            voucherDiscount: totals.voucherDiscount,
-          );
-
+      final order = await _placeOrder(PaymentMethod.cashOnDelivery);
       state = const AsyncData(null);
-      return CheckoutSucceeded(orderId);
+      return CheckoutSucceeded(order.id);
     } catch (e) {
       state = AsyncError(e, StackTrace.current);
       return CheckoutFailed(_friendlyError(e));
@@ -127,40 +123,15 @@ class CheckoutController extends AsyncNotifier<void> {
   Future<CheckoutResult> payWithEwallet({required String type}) async {
     state = const AsyncLoading();
     try {
-      final uid = ref.read(authStateProvider).value?.uid;
-      if (uid == null) return const CheckoutFailed('You must be signed in.');
-
-      final items = await _lineItems();
-      if (items.isEmpty) return const CheckoutFailed('Your cart is empty.');
-
-      final address = ref.read(selectedAddressProvider);
-      if (address == null) return const CheckoutFailed('Add a shipping address first.');
-
-      final shipping = ref.read(selectedShippingOptionProvider);
-      final totals = _totals(items, shipping);
-      final voucher = ref.read(appliedVoucherProvider);
-      final method = type == 'gcash' ? PaymentMethod.gcash : PaymentMethod.maya;
-
-      final orderId = await ref.read(orderRepositoryProvider).createOrder(
-            uid: uid,
-            items: items,
-            subtotal: totals.subtotal,
-            shippingCost: totals.shippingCost,
-            shippingOptionId: shipping.id,
-            shippingAddress: address,
-            paymentMethod: method,
-            voucherCode: voucher?.code,
-            voucherDiscount: totals.voucherDiscount,
-          );
-
+      final order = await _placeOrder(type == 'gcash' ? PaymentMethod.gcash : PaymentMethod.maya);
       final checkoutUrl = await ref.read(checkoutFunctionsServiceProvider).createEwalletSource(
-            orderId: orderId,
-            amount: totals.subtotal + totals.shippingCost - totals.voucherDiscount,
+            orderId: order.id,
+            amount: order.total,
             type: type,
           );
 
       state = const AsyncData(null);
-      return CheckoutAwaitingRedirect(orderId, checkoutUrl);
+      return CheckoutAwaitingRedirect(order.id, checkoutUrl);
     } catch (e) {
       state = AsyncError(e, StackTrace.current);
       return CheckoutFailed(_friendlyError(e));
@@ -177,30 +148,7 @@ class CheckoutController extends AsyncNotifier<void> {
   }) async {
     state = const AsyncLoading();
     try {
-      final uid = ref.read(authStateProvider).value?.uid;
-      if (uid == null) return const CheckoutFailed('You must be signed in.');
-
-      final items = await _lineItems();
-      if (items.isEmpty) return const CheckoutFailed('Your cart is empty.');
-
-      final address = ref.read(selectedAddressProvider);
-      if (address == null) return const CheckoutFailed('Add a shipping address first.');
-
-      final shipping = ref.read(selectedShippingOptionProvider);
-      final totals = _totals(items, shipping);
-      final voucher = ref.read(appliedVoucherProvider);
-
-      final orderId = await ref.read(orderRepositoryProvider).createOrder(
-            uid: uid,
-            items: items,
-            subtotal: totals.subtotal,
-            shippingCost: totals.shippingCost,
-            shippingOptionId: shipping.id,
-            shippingAddress: address,
-            paymentMethod: PaymentMethod.card,
-            voucherCode: voucher?.code,
-            voucherDiscount: totals.voucherDiscount,
-          );
+      final order = await _placeOrder(PaymentMethod.card);
 
       final paymentMethodId = await ref.read(paymongoClientProvider).createPaymentMethod(
             cardNumber: cardNumber,
@@ -212,14 +160,14 @@ class CheckoutController extends AsyncNotifier<void> {
           );
 
       final result = await ref.read(checkoutFunctionsServiceProvider).payWithCard(
-            orderId: orderId,
-            amount: totals.subtotal + totals.shippingCost - totals.voucherDiscount,
+            orderId: order.id,
+            amount: order.total,
             paymentMethodId: paymentMethodId,
           );
 
       state = const AsyncData(null);
-      if (result.status == 'succeeded') return CheckoutSucceeded(orderId);
-      if (result.redirectUrl != null) return CheckoutAwaitingRedirect(orderId, result.redirectUrl!);
+      if (result.status == 'succeeded') return CheckoutSucceeded(order.id);
+      if (result.redirectUrl != null) return CheckoutAwaitingRedirect(order.id, result.redirectUrl!);
       return const CheckoutFailed('Payment could not be completed.');
     } catch (e) {
       state = AsyncError(e, StackTrace.current);
@@ -234,13 +182,21 @@ class CheckoutController extends AsyncNotifier<void> {
   }
 }
 
-/// Turns backend errors into something a shopper can act on — mainly the
-/// "Out of stock: <title>" raised by the `apply_order_stock` trigger.
+class _CheckoutError implements Exception {
+  const _CheckoutError(this.message);
+  final String message;
+}
+
+/// Turns backend errors into something a shopper can act on. Messages
+/// raised by `place_order` / `apply_order_stock` (code P0001) are written for
+/// shoppers, so they're shown as-is.
 String _friendlyError(Object e) {
+  if (e is _CheckoutError) return e.message;
   if (e is PostgrestException) {
     if (e.hint == 'out_of_stock' || e.message.startsWith('Out of stock')) {
       return '${e.message}. Please lower the quantity or remove it from your cart.';
     }
+    if (e.code == 'P0001') return e.message;
     return 'Could not place your order. Please try again.';
   }
   return e.toString();

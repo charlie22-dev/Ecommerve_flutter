@@ -15,13 +15,11 @@ class ConversationScreen extends ConsumerStatefulWidget {
 
 class _ConversationScreenState extends ConsumerState<ConversationScreen> {
   final _textController = TextEditingController();
-  final _scrollController = ScrollController();
   bool _welcomeChecked = false;
 
   @override
   void dispose() {
     _textController.dispose();
-    _scrollController.dispose();
     super.dispose();
   }
 
@@ -43,13 +41,6 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
         _welcomeChecked = true;
         ref.read(messageActionsProvider).sendStoreWelcomeIfEmpty(thread);
       }
-      if (thread != null && thread.isNotEmpty) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (_scrollController.hasClients) {
-            _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
-          }
-        });
-      }
     });
 
     return Scaffold(
@@ -60,11 +51,13 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
             child: threadAsync.when(
               data: (thread) {
                 if (thread.isEmpty) return const SizedBox.shrink();
+                // Reversed so the thread sits at the bottom, newest just above
+                // the input, like any chat app.
                 return ListView.builder(
-                  controller: _scrollController,
+                  reverse: true,
                   padding: const EdgeInsets.all(16),
                   itemCount: thread.length,
-                  itemBuilder: (context, i) => _MessageBubble(message: thread[i]),
+                  itemBuilder: (context, i) => _MessageBubble(message: thread[thread.length - 1 - i]),
                 );
               },
               loading: () => Center(child: CircularProgressIndicator(color: colors.ink)),

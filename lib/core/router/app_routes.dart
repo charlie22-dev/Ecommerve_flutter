@@ -29,4 +29,14 @@ abstract final class AppRoute {
   static const adminMessages = '/admin/messages'; // + '/:uid'
   static const adminAddProduct = '/admin/product';
   static const adminEditProduct = '/admin/product'; // + '/:id/edit'
+  static const adminSellers = '/admin/sellers';
+  static const adminListings = '/admin/listings';
+
+  /// Seller Center — shows the application form until the user's store is
+  /// approved. Store data is protected by RLS, not by these routes.
+  static const seller = '/seller';
+  static const sellerProducts = '/seller/products';
+  static const sellerOrders = '/seller/orders';
+  static const sellerAddProduct = '/seller/product';
+  static const sellerEditProduct = '/seller/product'; // + '/:id/edit'
 }

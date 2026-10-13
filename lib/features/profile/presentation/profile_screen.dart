@@ -15,6 +15,7 @@ import '../../auth/presentation/auth_controller.dart';
 import '../../auth/presentation/auth_providers.dart';
 import '../../checkout/presentation/orders_screen.dart';
 import '../../library/presentation/library_providers.dart';
+import '../../seller/presentation/seller_providers.dart';
 import '../../settings/presentation/settings_screen.dart';
 import '../../wishlist/presentation/wishlist_providers.dart';
 import 'widgets/profile_avatar.dart';
@@ -37,6 +38,7 @@ class ProfileScreen extends ConsumerWidget {
 
     final appUser = ref.watch(appUserProvider).value;
     final isAdmin = ref.watch(isAdminProvider);
+    final hasStore = ref.watch(myStoreProvider).value != null;
     final currentlyReading =
         ref.watch(shelfEntriesProvider(ReadingShelf.currentlyReading)).value?.length ?? 0;
     final savedCount = ref.watch(wishlistIdsProvider).value?.length ?? 0;
@@ -179,6 +181,12 @@ class ProfileScreen extends ConsumerWidget {
                 label: 'Saved Books',
                 trailingText: '$savedCount',
                 onTap: () => context.push(AppRoute.library),
+              ),
+              Divider(height: 1, color: context.colors.borderSubtle),
+              _ProfileListRow(
+                icon: Icons.storefront_outlined,
+                label: hasStore ? 'Seller Center' : 'Become a Seller',
+                onTap: () => context.push(AppRoute.seller),
               ),
               Divider(height: 1, color: context.colors.borderSubtle),
               if (isAdmin) ...[

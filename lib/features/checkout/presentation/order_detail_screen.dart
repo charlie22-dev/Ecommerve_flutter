@@ -3,11 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/models/order.dart';
+import '../../../core/models/seller_order.dart';
 import '../../../core/models/shipping_option.dart';
 import '../../../core/theme/app_color_tokens.dart';
 import '../../../core/widgets/book_cover_image.dart';
 import '../../admin/presentation/admin_providers.dart';
 import '../../auth/presentation/auth_providers.dart';
+import '../../seller/presentation/seller_providers.dart';
 import 'checkout_providers.dart';
 import 'orders_screen.dart';
 import 'widgets/rate_order_sheet.dart';
@@ -100,6 +102,7 @@ class _OrderDetailBody extends ConsumerWidget {
             ],
           ),
         ),
+        _Shipments(orderId: order.id),
         if (order.shippingAddress != null) ...[
           const SizedBox(height: 16),
           _SectionCard(
@@ -163,6 +166,53 @@ class _OrderDetailBody extends ConsumerWidget {
           ),
         ],
       ],
+    );
+  }
+}
+
+/// Each store ships its own part of the order — show who's sending what,
+/// with the courier and tracking number once it's on its way.
+class _Shipments extends ConsumerWidget {
+  const _Shipments({required this.orderId});
+  final String orderId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colors = context.colors;
+    final shipments = ref.watch(orderShipmentsProvider(orderId)).value ?? const <SellerOrder>[];
+    if (shipments.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: _SectionCard(
+        title: shipments.length == 1 ? 'Shipment' : 'Shipments (${shipments.length} stores)',
+        child: Column(
+          children: [
+            for (final s in shipments)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Row(
+                  children: [
+                    Icon(Icons.storefront_outlined, size: 18, color: colors.textTertiary),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(s.storeName ?? 'Store',
+                              style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w700, fontSize: 13)),
+                          if (s.trackingNumber != null)
+                            Text('${s.trackingCarrier} · ${s.trackingNumber}',
+                                style: TextStyle(color: colors.textSecondary, fontSize: 12)),
+                        ],
+                      ),
+                    ),
+                    Text(s.status.label, style: TextStyle(color: colors.textSecondary, fontSize: 12, fontWeight: FontWeight.w700)),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -22,6 +22,7 @@ class AdminProductController extends AsyncNotifier<void> {
     required Book draft,
     Uint8List? newCoverBytes,
     String? newCoverExtension,
+    String? coverFolder,
   }) async {
     state = const AsyncLoading();
     final result = await AsyncValue.guard(() async {
@@ -34,6 +35,7 @@ class AdminProductController extends AsyncNotifier<void> {
             book.id.isEmpty ? await ref.read(bookRepositoryProvider).save(book) : book.id;
         final url = await ref.read(coverImageUploaderProvider).upload(
               bookId: bookId,
+              folder: coverFolder,
               bytes: newCoverBytes,
               fileExtension: newCoverExtension,
             );

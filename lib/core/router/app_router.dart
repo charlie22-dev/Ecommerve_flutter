@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart' show Supabase;
 
 import '../models/order.dart' show OrderStatus;
 import '../../features/admin/presentation/admin_dashboard_screen.dart';
+import '../../features/admin/presentation/admin_listings_screen.dart';
 import '../../features/admin/presentation/admin_messages_screen.dart';
 import '../../features/admin/presentation/admin_orders_screen.dart';
 import '../../features/admin/presentation/admin_product_form_screen.dart';
@@ -11,6 +12,7 @@ import '../../features/admin/presentation/admin_products_screen.dart';
 import '../../features/admin/presentation/admin_voucher_form_screen.dart';
 import '../../features/admin/presentation/admin_vouchers_screen.dart';
 import '../../features/admin/presentation/admin_providers.dart';
+import '../../features/admin/presentation/admin_sellers_screen.dart';
 import '../../features/auth/presentation/auth_screen.dart';
 import '../../features/book_details/presentation/book_details_screen.dart';
 import '../../features/cart/presentation/cart_screen.dart';
@@ -30,6 +32,9 @@ import '../../features/onboarding/presentation/splash_ad_screen.dart';
 import '../../features/profile/presentation/edit_profile_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/reviews/presentation/reviews_list_screen.dart';
+import '../../features/seller/presentation/seller_center_screen.dart';
+import '../../features/seller/presentation/seller_orders_screen.dart';
+import '../../features/seller/presentation/seller_products_screen.dart';
 import '../../features/vouchers/presentation/coupon_detail_screen.dart';
 import '../../features/vouchers/presentation/vouchers_screen.dart';
 import '../auth/pending_return_location.dart';
@@ -143,6 +148,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '${AppRoute.adminEditProduct}/:id/edit',
         builder: (context, state) => AdminProductFormScreen(bookId: state.pathParameters['id']!),
+      ),
+      GoRoute(path: AppRoute.adminSellers, builder: (context, state) => const AdminSellersScreen()),
+      GoRoute(path: AppRoute.adminListings, builder: (context, state) => const AdminListingsScreen()),
+      GoRoute(path: AppRoute.seller, builder: (context, state) => const SellerCenterScreen()),
+      GoRoute(path: AppRoute.sellerProducts, builder: (context, state) => const SellerProductsScreen()),
+      GoRoute(path: AppRoute.sellerOrders, builder: (context, state) => const SellerOrdersScreen()),
+      GoRoute(
+        path: AppRoute.sellerAddProduct,
+        builder: (context, state) => const AdminProductFormScreen(sellerMode: true),
+      ),
+      GoRoute(
+        path: '${AppRoute.sellerEditProduct}/:id/edit',
+        builder: (context, state) => AdminProductFormScreen(bookId: state.pathParameters['id']!, sellerMode: true),
       ),
       GoRoute(path: AppRoute.editProfile, builder: (context, state) => const EditProfileScreen()),
       // Pushed (not a nav-shell branch) — reached only via the Home search
