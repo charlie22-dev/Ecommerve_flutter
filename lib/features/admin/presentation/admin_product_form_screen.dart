@@ -15,6 +15,7 @@ import '../../../core/widgets/primary_button.dart';
 import '../../../core/widgets/status_chip.dart';
 import '../../catalog/presentation/catalog_providers.dart';
 import '../../seller/presentation/seller_providers.dart';
+import '../../seller/presentation/seller_rules.dart';
 import 'admin_product_controller.dart';
 import 'admin_products_screen.dart' show confirmDeleteProduct;
 
@@ -93,7 +94,8 @@ class _AdminProductFormScreenState extends ConsumerState<AdminProductFormScreen>
     _language.text = book.language;
     _pages.text = book.pages?.toString() ?? '';
     _isbn.text = book.isbn ?? '';
-    _type = book.type;
+    // Sellers can't pick "Other" (books-only rule), so never preselect it.
+    _type = widget.sellerMode && book.type == BookType.other ? BookType.book : book.type;
     _format = book.format;
     _genres
       ..clear()
@@ -368,10 +370,21 @@ class _AdminProductFormScreenState extends ConsumerState<AdminProductFormScreen>
             const _FieldLabel('Type'),
             _Dropdown<BookType>(
               value: _type,
-              items: BookType.values,
+              items: widget.sellerMode ? BookType.values.where((t) => t != BookType.other).toList() : BookType.values,
               labelOf: (t) => t.label,
               onChanged: (v) => setState(() => _type = v),
             ),
+            if (widget.sellerMode)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: InkWell(
+                  onTap: () => showSellerRulesSheet(context),
+                  child: Text(
+                    'BookVerse sellers can only list books and comics. See the seller rules.',
+                    style: TextStyle(color: context.colors.textTertiary, fontSize: 12, decoration: TextDecoration.underline),
+                  ),
+                ),
+              ),
             const SizedBox(height: 16),
             const _FieldLabel('Genre'),
             Wrap(

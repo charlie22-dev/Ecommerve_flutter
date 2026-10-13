@@ -456,6 +456,13 @@ begin
     return new;
   end if;
 
+  -- Marketplace rule: sellers sell books only — no merchandise or other items.
+  -- Keep in sync with lib/features/seller/presentation/seller_rules.dart.
+  if new.type = 'other' then
+    raise exception 'Sellers can only list books (manga, manhwa, manhua, comics, novels, textbooks…), not other items.'
+      using errcode = '42501';
+  end if;
+
   if tg_op = 'INSERT' then
     new.store_id := coalesce(new.store_id, public.my_store_id());
     new.rating := 0;

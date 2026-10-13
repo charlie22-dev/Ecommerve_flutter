@@ -173,8 +173,8 @@ do $$ begin
   insert into public.seller_applications (user_id, store_name) values (auth.uid(), 'Manga Corner');
 
   begin
-    insert into public.books (title, price, stock, store_id)
-    values ('Too early', 10, 1, (select id from public.stores where is_official));
+    insert into public.books (title, price, stock, type, store_id)
+    values ('Too early', 10, 1, 'book', (select id from public.stores where is_official));
     raise exception 'FAIL 4: listed a product before approval';
   exception when others then if sqlerrm like 'FAIL%' then raise; end if; end;
   begin
@@ -217,8 +217,8 @@ reset role;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000b1"}', true);
 set local role authenticated;
 do $$ begin
-  insert into public.books (id, title, price, stock, store_id, listing_status, rating, featured_sections)
-  values ('00000000-0000-0000-0000-0000000b0003', 'Seller One Manga', 300, 5,
+  insert into public.books (id, title, price, stock, type, store_id, listing_status, rating, featured_sections)
+  values ('00000000-0000-0000-0000-0000000b0003', 'Seller One Manga', 300, 5, 'manga',
           public.my_store_id(), 'published', 5, '{trending}');
   assert (select listing_status from public.books where id = '00000000-0000-0000-0000-0000000b0003')
     = 'pending_review', '6: seller self-published on insert';
@@ -229,12 +229,21 @@ do $$ begin
     raise exception 'FAIL 6: seller published a pending listing';
   exception when others then if sqlerrm like 'FAIL%' then raise; end if; end;
   begin
-    insert into public.books (title, price, stock, store_id)
-    values ('Wrong store', 10, 1, (select id from public.stores where is_official));
+    insert into public.books (title, price, stock, type, store_id)
+    values ('Wrong store', 10, 1, 'book', (select id from public.stores where is_official));
     raise exception 'FAIL 6: seller listed into another store';
   exception when others then if sqlerrm like 'FAIL%' then raise; end if; end;
+  -- Rule: books only.
+  begin
+    insert into public.books (title, price, stock, type) values ('Anime Keychain', 99, 10, 'other');
+    raise exception 'FAIL: seller listed a non-book item';
+  exception when others then if sqlerrm like 'FAIL%' then raise; end if; end;
+  begin
+    update public.books set type = 'other' where id = '00000000-0000-0000-0000-0000000b0003';
+    raise exception 'FAIL: seller changed a listing into a non-book item';
+  exception when others then if sqlerrm like 'FAIL%' then raise; end if; end;
   -- No store_id given: the listing goes into the seller's own store.
-  insert into public.books (title, price, stock) values ('Seller One Novel', 120, 2);
+  insert into public.books (title, price, stock, type) values ('Seller One Novel', 120, 2, 'novel');
   assert (select store_id from public.books where title = 'Seller One Novel') = public.my_store_id(),
     '6: listing without store_id not put in seller''s store';
   begin

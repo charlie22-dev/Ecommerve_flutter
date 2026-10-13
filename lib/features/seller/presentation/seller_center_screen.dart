@@ -12,6 +12,7 @@ import '../../../core/widgets/dashboard_tiles.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../../auth/presentation/auth_providers.dart';
 import 'seller_providers.dart';
+import 'seller_rules.dart';
 
 /// Seller Center: the application form (or its status) until an admin
 /// approves the user, then the store dashboard.
@@ -165,6 +166,12 @@ class _Dashboard extends ConsumerWidget {
                 : '${listings.length} listings · $inReview in review',
             onTap: () => context.push(AppRoute.sellerProducts),
           ),
+          DashboardNavRow(
+            icon: Icons.gavel_rounded,
+            title: 'Seller rules',
+            subtitle: 'What you can sell and how',
+            onTap: () => showSellerRulesSheet(context),
+          ),
         ],
       ),
     );
@@ -252,6 +259,7 @@ class _ApplyFormState extends ConsumerState<_ApplyForm> {
   );
   late final _phone = TextEditingController(text: widget.rejected?.contactPhone);
   bool _sending = false;
+  bool _agreed = false;
 
   @override
   void dispose() {
@@ -264,6 +272,11 @@ class _ApplyFormState extends ConsumerState<_ApplyForm> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    if (!_agreed) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Please agree to the seller rules first.')));
+      return;
+    }
     final uid = ref.read(authStateProvider).value?.uid;
     if (uid == null) return;
     setState(() => _sending = true);
@@ -343,7 +356,22 @@ class _ApplyFormState extends ConsumerState<_ApplyForm> {
               decoration: const InputDecoration(labelText: 'Contact number *'),
               validator: required,
             ),
-            const SizedBox(height: 28),
+            const SizedBox(height: 24),
+            Text('Seller rules', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 4),
+            const SellerRulesList(),
+            CheckboxListTile(
+              value: _agreed,
+              onChanged: (v) => setState(() => _agreed = v ?? false),
+              contentPadding: EdgeInsets.zero,
+              controlAffinity: ListTileControlAffinity.leading,
+              activeColor: colors.ink,
+              title: Text(
+                'I have read and agree to the seller rules',
+                style: TextStyle(color: colors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
+              ),
+            ),
+            const SizedBox(height: 12),
             PrimaryButton(label: 'Submit Application', isLoading: _sending, onPressed: _submit),
           ],
         ),
