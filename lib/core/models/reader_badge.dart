@@ -18,6 +18,8 @@ class ReaderBadge {
   final IconData icon;
   final bool isEarned;
 
+  /// Computes the full badge list from profile counters.
+  /// Pure client-side function — no network calls or database writes needed.
   static List<ReaderBadge> compute({
     required int booksCompletedCount,
     required int streakCount,
