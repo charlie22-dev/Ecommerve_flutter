@@ -42,13 +42,20 @@ class SupabaseAuthRepository implements AuthRepository {
       email: email.trim(),
       password: password,
       data: {'display_name': displayName},
-      emailRedirectTo: kIsWeb ? null : SupabaseConfig.mobileRedirectUrl,
+      emailRedirectTo: _redirectUrl,
     );
     // With "Confirm email" enabled, Supabase returns a user but no session.
     // (It also returns a fake, identity-less user for an already-registered
     // email, so enumeration isn't possible — treated the same way.)
     return response.session != null ? SignUpResult.signedIn : SignUpResult.needsEmailConfirmation;
   }
+
+  /// Where Supabase sends the user back after Google/Facebook, email
+  /// confirmation or password reset. On web it's the address the app is
+  /// running at right now (`flutter run` picks a random port), not the
+  /// project's Site URL. Must match Authentication → URL Configuration →
+  /// Redirect URLs (see supabase/SETUP.md).
+  static String get _redirectUrl => kIsWeb ? Uri.base.origin : SupabaseConfig.mobileRedirectUrl;
 
   @override
   Future<void> signInWithGoogle() => _signInWithProvider(OAuthProvider.google);
@@ -69,7 +76,7 @@ class SupabaseAuthRepository implements AuthRepository {
             .timeout(const Duration(minutes: 5));
     final launched = await _auth.signInWithOAuth(
       provider,
-      redirectTo: kIsWeb ? null : SupabaseConfig.mobileRedirectUrl,
+      redirectTo: _redirectUrl,
       authScreenLaunchMode: kIsWeb ? LaunchMode.platformDefault : LaunchMode.externalApplication,
     );
     if (!launched) throw const AuthException('Could not open the sign-in page.', code: 'launch_failed');
@@ -80,7 +87,7 @@ class SupabaseAuthRepository implements AuthRepository {
   Future<void> sendPasswordResetEmail(String email) async {
     await _auth.resetPasswordForEmail(
       email.trim(),
-      redirectTo: kIsWeb ? null : SupabaseConfig.mobileRedirectUrl,
+      redirectTo: _redirectUrl,
     );
   }
 

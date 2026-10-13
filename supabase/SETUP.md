@@ -53,9 +53,14 @@ back. You should see `ALL MARKETPLACE TESTS PASSED`.
 - **Site URL**: where the web app runs. For local testing use
   `http://localhost:5000` and run the app with
   `flutter run -d chrome --web-port 5000`.
-- **Redirect URLs** → **Add URL**: `com.bookverse.app://login-callback`
-  (the Android app's deep link for email confirmation, password reset, and
-  Google/Facebook sign-in).
+- **Redirect URLs** → **Add URL**, once for each:
+  - `com.bookverse.app://login-callback`: the Android app's deep link for
+    email confirmation, password reset, and Google/Facebook sign-in.
+  - `http://localhost:*/**`: the web app during development. `flutter run`
+    picks a random port, and the app asks to come back to whatever port it's
+    on. Without this, Supabase sends you to the Site URL instead and you end
+    up signed out.
+  - Your deployed web address, if you host it (e.g. `https://bookverse.example.com/**`).
 
 **Google / Facebook sign-in (optional)**: **Authentication → Sign In / Providers →
 Google** (or Facebook) → enable, then paste the Client ID and secret from Google
