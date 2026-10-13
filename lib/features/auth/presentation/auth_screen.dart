@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,6 +13,7 @@ import '../domain/auth_repository.dart';
 import 'auth_controller.dart';
 import 'auth_validators.dart';
 import 'login_success_dialog.dart';
+import 'oauth_return.dart';
 import 'widgets/forgot_password_sheet.dart';
 
 /// The unified Login / Sign up screen from login_basis.png — a single pill
@@ -124,16 +126,22 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     }
   }
 
-  Future<void> _continueWithGoogle() async {
-    final ok = await ref.read(authControllerProvider.notifier).signInWithGoogle();
-    if (ok && mounted) {
-      await LoginSuccessDialog.show(context, isNewAccount: false);
-      _goToReturnLocation();
-    }
-  }
+  Future<void> _continueWithGoogle() =>
+      _continueWithProvider(() => ref.read(authControllerProvider.notifier).signInWithGoogle());
 
-  Future<void> _continueWithFacebook() async {
-    final ok = await ref.read(authControllerProvider.notifier).signInWithFacebook();
+  Future<void> _continueWithFacebook() =>
+      _continueWithProvider(() => ref.read(authControllerProvider.notifier).signInWithFacebook());
+
+  Future<void> _continueWithProvider(Future<bool> Function() signIn) async {
+    // On web the page leaves for Google/Facebook and the app reloads, so
+    // "ok" here only means the redirect started; OAuthReturn shows the
+    // popup after the reload, once the user really is signed in.
+    if (kIsWeb) await OAuthReturn.markPending(ref.read(pendingReturnLocationProvider));
+    final ok = await signIn();
+    if (kIsWeb) {
+      if (!ok) await OAuthReturn.clear();
+      return;
+    }
     if (ok && mounted) {
       await LoginSuccessDialog.show(context, isNewAccount: false);
       _goToReturnLocation();
