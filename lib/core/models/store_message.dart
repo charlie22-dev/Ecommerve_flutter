@@ -13,6 +13,9 @@ enum MessageSender {
   static MessageSender fromKey(String? key) => key == 'store' ? MessageSender.store : MessageSender.user;
 }
 
+/// A single chat message in a buyer ↔ store conversation thread.
+/// [sender] indicates whether the message was written by the buyer ([MessageSender.user])
+/// or replied by the store/admin ([MessageSender.store]).
 class StoreMessage extends Equatable {
   const StoreMessage({
     required this.id,
