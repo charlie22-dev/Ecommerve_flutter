@@ -45,6 +45,11 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
+  # Logo and app mark (transparent PNGs). The launcher/web icons are
+  # generated from the same artwork into each platform's own folders.
+  assets:
+    - assets/branding/
+
   # Display font (Anton, condensed/bold) and body font (Manrope) are loaded at
   # runtime via google_fonts (see lib/core/theme/app_typography.dart) rather
   # than bundled as raw asset files — no binary font files to ship or update.
