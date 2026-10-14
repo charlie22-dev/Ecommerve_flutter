@@ -72,11 +72,17 @@ class _Sidebar extends ConsumerWidget {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Row(
                 children: [
-                  Text('BookVerse', style: Theme.of(context).textTheme.titleLarge),
-                  Text('Admin Panel', style: TextStyle(color: colors.textTertiary, fontSize: 12)),
+                  Image.asset('assets/branding/mark.png', height: 36),
+                  const SizedBox(width: 10),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('BookVerse', style: Theme.of(context).textTheme.titleLarge),
+                      Text('Admin Panel', style: TextStyle(color: colors.textTertiary, fontSize: 12)),
+                    ],
+                  ),
                 ],
               ),
             ),

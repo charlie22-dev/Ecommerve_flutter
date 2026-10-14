@@ -72,14 +72,8 @@ class SplashAdScreen extends ConsumerWidget {
                 mainAxisAlignment: MainAxisAlignment.end,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Icon(Icons.menu_book_rounded, color: colors.onInk, size: 44),
-                  const SizedBox(height: 16),
-                  Text(
-                    'BookVerse',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: colors.onInk, fontSize: 34, fontWeight: FontWeight.w900, letterSpacing: -0.5),
-                  ),
-                  const SizedBox(height: 8),
+                  Image.asset('assets/branding/logo.png', height: 170, semanticLabel: 'BookVerse'),
+                  const SizedBox(height: 12),
                   Text(
                     'Manga, manhwa, manhua, comics & light novels —\nshop your next read and track your shelf.',
                     textAlign: TextAlign.center,

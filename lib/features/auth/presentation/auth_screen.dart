@@ -8,7 +8,6 @@ import '../../../core/auth/pending_return_location.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_color_tokens.dart';
 import '../../../core/widgets/primary_button.dart';
-import '../../../core/widgets/reading_illustration.dart';
 import '../domain/auth_repository.dart';
 import 'auth_controller.dart';
 import 'auth_validators.dart';
@@ -208,7 +207,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Center(child: ReadingIllustration()),
+                Center(child: Image.asset('assets/branding/logo.png', height: 150, semanticLabel: 'BookVerse')),
                 const SizedBox(height: 20),
                 Text(
                   _isLogin ? 'Welcome back \u{1F44B}' : 'Create your account ✨',

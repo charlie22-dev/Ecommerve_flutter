@@ -341,7 +341,7 @@ class ChatHeader extends StatelessWidget {
   }
 }
 
-/// BookVerse Store's avatar: the brand's ink circle with a book.
+/// BookVerse Store's avatar: the brand mark in a light circle.
 class StoreAvatar extends StatelessWidget {
   const StoreAvatar({super.key, this.radius = 16});
   final double radius;
@@ -349,10 +349,16 @@ class StoreAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return CircleAvatar(
-      radius: radius,
-      backgroundColor: colors.ink,
-      child: Icon(Icons.auto_stories_rounded, size: radius, color: colors.onInk),
+    return Container(
+      width: radius * 2,
+      height: radius * 2,
+      padding: EdgeInsets.all(radius * 0.3),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        shape: BoxShape.circle,
+        border: Border.all(color: colors.border),
+      ),
+      child: Image.asset('assets/branding/mark.png', semanticLabel: 'BookVerse Store'),
     );
   }
 }
