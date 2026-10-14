@@ -24,8 +24,23 @@ class AppShell extends StatelessWidget {
     (icon: Icons.person_outline_rounded, activeIcon: Icons.person_rounded, label: 'Me'),
   ];
 
+  /// From this width up the tabs move to a website-style top bar.
+  static const wideBreakpoint = 900.0;
+
+  void _goTo(int i) => navigationShell.goBranch(i, initialLocation: i == navigationShell.currentIndex);
+
   @override
   Widget build(BuildContext context) {
+    if (MediaQuery.sizeOf(context).width >= wideBreakpoint) {
+      return Scaffold(
+        body: Column(
+          children: [
+            _TopBar(items: _items, currentIndex: navigationShell.currentIndex, onTap: _goTo),
+            Expanded(child: navigationShell),
+          ],
+        ),
+      );
+    }
     return Scaffold(
       body: navigationShell,
       bottomNavigationBar: DecoratedBox(
@@ -48,15 +63,72 @@ class AppShell extends StatelessWidget {
                     activeIcon: _items[i].activeIcon,
                     label: _items[i].label,
                     selected: navigationShell.currentIndex == i,
-                    onTap: () => navigationShell.goBranch(
-                      i,
-                      initialLocation: i == navigationShell.currentIndex,
-                    ),
+                    onTap: () => _goTo(i),
                   ),
               ],
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Desktop/web header: logo on the left, the same five sections as links.
+class _TopBar extends StatelessWidget {
+  const _TopBar({required this.items, required this.currentIndex, required this.onTap});
+
+  final List<({IconData icon, IconData activeIcon, String label})> items;
+  final int currentIndex;
+  final ValueChanged<int> onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Container(
+      height: 68,
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      decoration: BoxDecoration(border: Border(bottom: BorderSide(color: colors.border))),
+      child: Row(
+        children: [
+          InkWell(
+            onTap: () => onTap(0),
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.all(6),
+              child: Row(
+                children: [
+                  Image.asset('assets/branding/mark.png', height: 34, semanticLabel: 'BookVerse home'),
+                  const SizedBox(width: 10),
+                  Text('BookVerse', style: Theme.of(context).textTheme.titleLarge),
+                ],
+              ),
+            ),
+          ),
+          const Spacer(),
+          for (var i = 0; i < items.length; i++)
+            Padding(
+              padding: const EdgeInsets.only(left: 4),
+              child: Semantics(
+                button: true,
+                selected: currentIndex == i,
+                child: TextButton.icon(
+                  onPressed: () => onTap(i),
+                  style: TextButton.styleFrom(
+                    backgroundColor: currentIndex == i ? colors.surfaceMuted : Colors.transparent,
+                    foregroundColor: currentIndex == i ? colors.ink : colors.textSecondary,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    shape: const StadiumBorder(),
+                  ),
+                  icon: Icon(currentIndex == i ? items[i].activeIcon : items[i].icon, size: 20),
+                  label: Text(
+                    items[i].label,
+                    style: TextStyle(fontWeight: currentIndex == i ? FontWeight.w800 : FontWeight.w600),
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
