@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/models/book.dart';
 import '../../../core/theme/app_color_tokens.dart';
+import '../../../core/widgets/book_card.dart';
 import '../../../core/widgets/cart_icon_button.dart';
 import '../../../core/widgets/category_chip.dart';
 import '../../../core/widgets/empty_state.dart';
@@ -166,6 +167,24 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
                     icon: Icons.search_off_rounded,
                     title: 'No books found',
                     message: 'Try a different search term or category.',
+                  );
+                }
+                // Website-style cover grid on wide screens; the list on phones.
+                if (MediaQuery.sizeOf(context).width >= 700) {
+                  return GridView.builder(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                    gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                      maxCrossAxisExtent: 180,
+                      childAspectRatio: 0.5,
+                      crossAxisSpacing: 16,
+                      mainAxisSpacing: 20,
+                    ),
+                    itemCount: books.length,
+                    itemBuilder: (context, i) => BookCard(
+                      book: books[i],
+                      width: double.infinity,
+                      onTap: () => context.push('/store/book/${books[i].id}'),
+                    ),
                   );
                 }
                 return ListView.separated(
