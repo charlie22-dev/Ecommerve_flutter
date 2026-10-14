@@ -12,7 +12,7 @@ insert into public.books
    rating, rating_count, description, featured_sections, cover_url, stock)
 select v.title, v.author, v.isbn, v.price, v.type, v.format, v.genres, v.publisher, v.pages,
        v.release_date::date, v.rating, v.rating_count, v.description, v.featured_sections, v.cover_url, v.stock
-from (values
+from (values 
   ('Naruto, Vol. 1', 'Masashi Kishimoto', '9781569319000', 320, 'manga', 'paperback', array['Action', 'Adventure']::text[], 'VIZ Media', 192, '2003-01-01', 4.8, 5210, 'A young ninja outcast dreams of becoming leader of his village.', array['trending']::text[], 'https://covers.openlibrary.org/b/isbn/9781569319000-L.jpg', 29),
   ('One Piece, Vol. 1', 'Eiichiro Oda', '9781569319017', 320, 'manga', 'paperback', array['Action', 'Adventure', 'Comedy']::text[], 'VIZ Media', 216, '2003-01-01', 4.9, 6140, 'Monkey D. Luffy sets sail to find the legendary One Piece treasure.', array['trending', 'forYou']::text[], 'https://covers.openlibrary.org/b/isbn/9781569319017-L.jpg', 5),
   ('Attack on Titan, Vol. 1', 'Hajime Isayama', '9781612620244', 350, 'manga', 'paperback', array['Action', 'Horror', 'Drama']::text[], 'Kodansha', 192, '2012-01-01', 4.8, 4890, 'Humanity fights for survival against man-eating Titans.', array['newReleases']::text[], 'https://covers.openlibrary.org/b/isbn/9781612620244-L.jpg', 30),
