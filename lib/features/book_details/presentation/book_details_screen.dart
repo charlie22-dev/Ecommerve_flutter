@@ -33,7 +33,9 @@ class BookDetailsScreen extends ConsumerWidget {
       body: bookAsync.when(
         data: (book) {
           if (book == null) {
-            return Center(child: Text('Book not found', style: TextStyle(color: context.colors.textSecondary)));
+            return Center(
+              child: Text('Book not found', style: TextStyle(color: context.colors.textSecondary)),
+            );
           }
           return _BookDetailsBody(book: book);
         },
@@ -110,101 +112,134 @@ class _BookDetailsBodyState extends ConsumerState<_BookDetailsBody> {
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: SizedBox(
-                    width: 170,
-                    child: AspectRatio(
-                      aspectRatio: 2 / 3,
-                      child: BookCoverImage(url: book.coverUrl, borderRadius: 14),
-                    ),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final coverWidget = SizedBox(
+                  width: wide(constraints) ? 300 : 170,
+                  child: AspectRatio(
+                    aspectRatio: 2 / 3,
+                    child: BookCoverImage(url: book.coverUrl, borderRadius: 14),
                   ),
-                ),
-                const SizedBox(height: 20),
-                Text(book.title, style: Theme.of(context).textTheme.headlineSmall),
-                const SizedBox(height: 4),
-                Text('by ${book.author}', style: TextStyle(color: context.colors.textSecondary, fontSize: 14)),
-                const SizedBox(height: 10),
-                // Live aggregate from the `reviews` collection — the same
-                // source the Reviews section below lists — not the seeded
-                // `book.ratingCount`, which claimed e.g. "(1423)" reviews
-                // while the section underneath showed none. Tapping jumps
-                // down to the actual reviews.
-                _RatingSummary(bookId: book.id, reviewsKey: _reviewsKey),
-                const SizedBox(height: 16),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    _Tag(book.type.label),
-                    _Tag(book.format.label),
-                    ...book.genres.map(_Tag.new),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                if (libraryEntry != null) ...[
-                  _LibraryProgressCard(book: book, entry: libraryEntry),
+                );
+                final buyBox = <Widget>[
+                  Text(book.title, style: Theme.of(context).textTheme.headlineSmall),
+                  const SizedBox(height: 4),
+                  Text('by ${book.author}', style: TextStyle(color: context.colors.textSecondary, fontSize: 14)),
+                  const SizedBox(height: 10),
+                  // Live aggregate from the `reviews` collection — the same
+                  // source the Reviews section below lists — not the seeded
+                  // `book.ratingCount`, which claimed e.g. "(1423)" reviews
+                  // while the section underneath showed none. Tapping jumps
+                  // down to the actual reviews.
+                  _RatingSummary(bookId: book.id, reviewsKey: _reviewsKey),
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [_Tag(book.type.label), _Tag(book.format.label), ...book.genres.map(_Tag.new)],
+                  ),
                   const SizedBox(height: 20),
-                ],
-                Row(
-                  children: [
-                    Expanded(
-                      child: PrimaryButton(
-                        label: book.inStock ? 'Add to Cart · ₱${book.price.toStringAsFixed(0)}' : 'Out of stock',
-                        icon: Icons.shopping_cart_rounded,
-                        onPressed: book.inStock
-                            ? () {
-                                if (!ensureLoggedIn(context, ref)) return;
-                                ref.read(cartActionsProvider).add(book.id);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Added to cart')),
-                                );
-                              }
-                            : null,
-                      ),
-                    ),
+                  if (libraryEntry != null) ...[
+                    _LibraryProgressCard(book: book, entry: libraryEntry),
+                    const SizedBox(height: 20),
                   ],
-                ),
-                const SizedBox(height: 10),
-                // Buy Now adds this book to the cart (if not already there)
-                // and jumps straight to checkout — if other items are
-                // already in the cart, they come along too, same as most
-                // ecommerce apps' "buy now" shortcut. Solid orange (not the
-                // theme's ink color) so it reads as the urgent CTA next to
-                // the neutral "Add to Cart" button above.
-                ElevatedButton.icon(
-                  onPressed: book.inStock
-                      ? () async {
-                          if (!ensureLoggedIn(context, ref)) return;
-                          await ref.read(cartActionsProvider).add(book.id);
-                          if (context.mounted) context.push('/checkout');
-                        }
-                      : null,
-                  icon: const Icon(Icons.bolt_rounded, size: 18),
-                  label: const Text('Buy Now'),
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(48),
-                    backgroundColor: context.colors.accentOrange,
-                    foregroundColor: context.colors.onAccentOrange,
-                    disabledBackgroundColor: context.colors.accentOrange.withValues(alpha: 0.35),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: PrimaryButton(
+                          label: book.inStock ? 'Add to Cart · ₱${book.price.toStringAsFixed(0)}' : 'Out of stock',
+                          icon: Icons.shopping_cart_rounded,
+                          onPressed: book.inStock
+                              ? () {
+                                  if (!ensureLoggedIn(context, ref)) return;
+                                  ref.read(cartActionsProvider).add(book.id);
+                                  ScaffoldMessenger.of(context)
+                                      .showSnackBar(const SnackBar(content: Text('Added to cart')));
+                                }
+                              : null,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(height: 28),
-                Text('Description', style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: 8),
-                Text(
-                  book.description.isEmpty ? 'No description available.' : book.description,
-                  style: TextStyle(color: context.colors.textSecondary, fontSize: 14, height: 1.5),
-                ),
-                const SizedBox(height: 28),
-                Text('Details', style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: 8),
-                _DetailsTable(book: book),
-                const SizedBox(height: 28),
-                ReviewsSection(key: _reviewsKey, bookId: book.id),
-              ],
+                  const SizedBox(height: 10),
+                  // Buy Now adds this book to the cart (if not already there)
+                  // and jumps straight to checkout — if other items are
+                  // already in the cart, they come along too, same as most
+                  // ecommerce apps' "buy now" shortcut. Solid orange (not the
+                  // theme's ink color) so it reads as the urgent CTA next to
+                  // the neutral "Add to Cart" button above.
+                  ElevatedButton.icon(
+                    onPressed: book.inStock
+                        ? () async {
+                            if (!ensureLoggedIn(context, ref)) return;
+                            await ref.read(cartActionsProvider).add(book.id);
+                            if (context.mounted) context.push('/checkout');
+                          }
+                        : null,
+                    icon: const Icon(Icons.bolt_rounded, size: 18),
+                    label: const Text('Buy Now'),
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(48),
+                      backgroundColor: context.colors.accentOrange,
+                      foregroundColor: context.colors.onAccentOrange,
+                      disabledBackgroundColor: context.colors.accentOrange.withValues(alpha: 0.35),
+                    ),
+                  ),
+                ];
+                final more = <Widget>[
+                  const SizedBox(height: 28),
+                  Text('Description', style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: 8),
+                  Text(
+                    book.description.isEmpty ? 'No description available.' : book.description,
+                    style: TextStyle(color: context.colors.textSecondary, fontSize: 14, height: 1.5),
+                  ),
+                  const SizedBox(height: 28),
+                  Text('Details', style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: 8),
+                  _DetailsTable(book: book),
+                  const SizedBox(height: 28),
+                  ReviewsSection(key: _reviewsKey, bookId: book.id),
+                ];
+                // Website layout on wide screens: cover left, buy box right.
+                if (wide(constraints)) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          coverWidget,
+                          const SizedBox(width: 40),
+                          Expanded(
+                            // Align loosens Expanded's tight width so the cap applies.
+                            child: Align(
+                              alignment: Alignment.topLeft,
+                              child: ConstrainedBox(
+                                constraints: const BoxConstraints(maxWidth: 560),
+                                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: buyBox),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 760),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: more),
+                      ),
+                    ],
+                  );
+                }
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(child: coverWidget),
+                    const SizedBox(height: 20),
+                    ...buyBox,
+                    ...more,
+                  ],
+                );
+              },
             ),
           ),
         ),
@@ -212,13 +247,13 @@ class _BookDetailsBodyState extends ConsumerState<_BookDetailsBody> {
     );
   }
 
+  static bool wide(BoxConstraints c) => c.maxWidth >= 700;
+
   void _showShelfPicker(BuildContext context, WidgetRef ref, String bookId, LibraryEntry? current) {
     showModalBottomSheet(
       context: context,
       backgroundColor: context.colors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (context) {
         return SafeArea(
           child: Column(
@@ -275,19 +310,24 @@ class _BookDetailsBodyState extends ConsumerState<_BookDetailsBody> {
                       (collection) => ListTile(
                         leading: Icon(Icons.collections_bookmark_outlined, color: context.colors.textPrimary),
                         title: Text(collection.title, style: TextStyle(color: context.colors.textPrimary)),
-                        subtitle: Text('${collection.bookCount} books', style: TextStyle(color: context.colors.textTertiary)),
+                        subtitle: Text(
+                          '${collection.bookCount} books',
+                          style: TextStyle(color: context.colors.textTertiary),
+                        ),
                         onTap: () {
                           ref.read(collectionActionsProvider).addBook(collection.id, bookId);
                           Navigator.of(sheetContext).pop();
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Added to "${collection.title}"')),
-                          );
+                          ScaffoldMessenger.of(context)
+                              .showSnackBar(SnackBar(content: Text('Added to "${collection.title}"')));
                         },
                       ),
                     ),
                   ListTile(
                     leading: Icon(Icons.add_rounded, color: context.colors.textPrimary),
-                    title: Text('New collection', style: TextStyle(color: context.colors.textPrimary, fontWeight: FontWeight.w700)),
+                    title: Text(
+                      'New collection',
+                      style: TextStyle(color: context.colors.textPrimary, fontWeight: FontWeight.w700),
+                    ),
                     onTap: () {
                       Navigator.of(sheetContext).pop();
                       CreateCollectionSheet.show(context);
@@ -360,8 +400,10 @@ class _LibraryProgressCard extends ConsumerWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('Your progress', style: TextStyle(color: context.colors.textSecondary, fontSize: 13)),
-              Text('${entry.progressPercent.round()}%',
-                  style: TextStyle(color: context.colors.ink, fontWeight: FontWeight.w800)),
+              Text(
+                '${entry.progressPercent.round()}%',
+                style: TextStyle(color: context.colors.ink, fontWeight: FontWeight.w800),
+              ),
             ],
           ),
           const SizedBox(height: 10),
@@ -369,11 +411,7 @@ class _LibraryProgressCard extends ConsumerWidget {
             value: entry.progressPercent.clamp(0, 100),
             onChanged: (value) {
               final chapter = total != null ? (total * value / 100).round() : entry.currentChapter;
-              ref.read(libraryActionsProvider).updateProgress(
-                    book.id,
-                    progressPercent: value,
-                    currentChapter: chapter,
-                  );
+              ref.read(libraryActionsProvider).updateProgress(book.id, progressPercent: value, currentChapter: chapter);
             },
             activeColor: context.colors.ink,
             inactiveColor: context.colors.border,
