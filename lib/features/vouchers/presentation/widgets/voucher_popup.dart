@@ -39,6 +39,8 @@ class VoucherPopup extends ConsumerWidget {
       backgroundColor: colors.surface,
       insetPadding: const EdgeInsets.symmetric(horizontal: 28),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      // Phone-width on desktop too, instead of stretching across the screen.
+      constraints: const BoxConstraints(maxWidth: 480),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
         child: Column(

@@ -3,6 +3,7 @@
 // PostgREST actually returns for the tables in supabase/schema.sql.
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:my_app/core/widgets/book_cover_image.dart';
 import 'package:my_app/core/models/app_user.dart';
 import 'package:my_app/core/models/book.dart';
 import 'package:my_app/core/models/order.dart';
@@ -137,5 +138,12 @@ void main() {
     expect(user.displayName, 'Alice');
     expect(user.isAdmin, isTrue);
     expect(user.badgeIds, ['firstBook']);
+  });
+
+  test('Open Library covers: medium when small, 404 when missing', () {
+    const l = 'https://covers.openlibrary.org/b/isbn/9781569319000-L.jpg';
+    expect(BookCoverImage.sizedUrl(l, 150), 'https://covers.openlibrary.org/b/isbn/9781569319000-M.jpg?default=false');
+    expect(BookCoverImage.sizedUrl(l, 400), '$l?default=false');
+    expect(BookCoverImage.sizedUrl('https://x.supabase.co/a.png', 150), 'https://x.supabase.co/a.png');
   });
 }
