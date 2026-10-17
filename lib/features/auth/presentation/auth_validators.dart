@@ -31,6 +31,7 @@ abstract final class AuthValidators {
     };
   }
 
+  /// Validates that a user's display name is not blank and is at least 2 characters.
   static String? displayName(String? value) {
     final v = value?.trim() ?? '';
     if (v.isEmpty) return 'Enter your name';
