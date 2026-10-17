@@ -92,6 +92,7 @@ extension _FirstOrNull<T> on Iterable<T> {
   T? get firstOrNull => isEmpty ? null : first;
 }
 
+/// Core catalog model representing a book or reading publication in BookVerse.
 class Book extends Equatable {
   const Book({
     required this.id,
