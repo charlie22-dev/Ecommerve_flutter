@@ -1,6 +1,7 @@
 import '../../../core/models/store_message.dart';
 import '../../../core/services/db.dart';
 
+/// Handles database operations for customer support messages and store conversations.
 class MessageRepository {
   Stream<List<StoreMessage>> watchThread(String uid) {
     return watchQuery(Tables.messages, () async {
