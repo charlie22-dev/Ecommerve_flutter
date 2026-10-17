@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_color_tokens.dart';
 
+/// An interactive filter chip representing a genre or category selection.
 class CategoryChip extends StatelessWidget {
   const CategoryChip({super.key, required this.label, required this.selected, required this.onTap});
 
