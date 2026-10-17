@@ -20,6 +20,7 @@ abstract final class SupabaseConfig {
     defaultValue: 'sb_publishable_N2A_BqulRXNk2iFAHU-Sbg_6OlU24v4',
   );
 
+  /// Whether valid Supabase project URL and API keys have been configured.
   static bool get isConfigured => !url.contains('YOUR-PROJECT-REF') && publishableKey != 'YOUR-PUBLISHABLE-KEY';
 
   /// Deep link the OAuth (Google/Facebook) and password-reset flows return
