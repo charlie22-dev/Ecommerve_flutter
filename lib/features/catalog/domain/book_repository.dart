@@ -1,5 +1,6 @@
 import '../../../core/models/book.dart';
 
+/// Repository interface for querying and modifying catalog books and collections.
 abstract class BookRepository {
   Stream<List<Book>> watchSection(FeaturedSection section, {int limit = 12});
 
