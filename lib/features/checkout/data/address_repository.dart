@@ -1,6 +1,7 @@
 import '../../../core/models/shipping_address.dart';
 import '../../../core/services/db.dart';
 
+/// Manages persistence and retrieval of customer delivery addresses in Supabase.
 class AddressRepository {
   Stream<List<ShippingAddress>> watchAddresses(String uid) {
     return watchQuery(Tables.addresses, () async {
