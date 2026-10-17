@@ -1,5 +1,6 @@
 import '../../../core/models/library_entry.dart';
 
+/// Contract for managing user library shelves, reading status, and bookmarks.
 abstract class LibraryRepository {
   Stream<List<LibraryEntry>> watchShelf(String uid, ReadingShelf shelf);
 
