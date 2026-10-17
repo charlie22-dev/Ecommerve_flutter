@@ -1,6 +1,7 @@
 import '../../../core/models/app_notification.dart';
 import '../../../core/services/db.dart';
 
+/// Repository responsible for user notifications and unread message updates.
 class NotificationRepository {
   Stream<List<AppNotification>> watchForUser(String userId) {
     return watchQuery(Tables.notifications, () async {
