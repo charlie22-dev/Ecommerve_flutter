@@ -7,6 +7,7 @@
 /// live key (`pk_live_...`) only in your release build — see the "PayMongo
 /// setup" section of README.md.
 abstract final class PaymongoConfig {
+  /// Publishable API key used by the mobile client for PayMongo tokenization requests.
   static const publicKey = 'pk_test_REPLACE_WITH_YOUR_PAYMONGO_PUBLIC_KEY';
 
   static const apiBase = 'https://api.paymongo.com/v1';
