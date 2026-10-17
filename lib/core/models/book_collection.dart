@@ -21,6 +21,7 @@ class BookCollection extends Equatable {
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
+  /// Number of books currently saved in this collection.
   int get bookCount => bookIds.length;
 
   factory BookCollection.fromRow(Map<String, dynamic> row) {
