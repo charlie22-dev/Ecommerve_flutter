@@ -32,6 +32,7 @@ enum OrderStatus {
       };
 }
 
+/// Supported customer payment methods for settling an order at checkout.
 enum PaymentMethod {
   gcash,
   maya,
