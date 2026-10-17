@@ -4,6 +4,7 @@ import '../theme/app_color_tokens.dart';
 
 // Building blocks shared by the Admin Panel and the Seller Center.
 
+/// Metric summary card displaying an icon, title, and key numerical value.
 class StatTile extends StatelessWidget {
   const StatTile({
     super.key,
