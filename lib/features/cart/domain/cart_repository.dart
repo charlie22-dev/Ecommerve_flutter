@@ -1,5 +1,6 @@
 import '../../../core/models/cart_item.dart';
 
+/// Data access contract for managing a shopper's shopping cart items.
 abstract class CartRepository {
   Stream<List<CartItem>> watchCart(String uid);
 
