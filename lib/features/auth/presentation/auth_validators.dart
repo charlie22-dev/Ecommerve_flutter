@@ -21,6 +21,8 @@ abstract final class AuthValidators {
     return null;
   }
 
+  /// Returns a validator function that asserts the entered confirmation password
+  /// matches the primary password retrieved via [getPassword].
   static String? Function(String?) confirmPassword(String Function() getPassword) {
     return (value) {
       if (value == null || value.isEmpty) return 'Confirm your password';
