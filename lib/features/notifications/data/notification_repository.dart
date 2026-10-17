@@ -31,6 +31,7 @@ class NotificationRepository {
         ).toRow());
   }
 
+  /// Marks a specific notification as read by setting its database flag to true.
   Future<void> markRead(String notificationId) async {
     await db.from(Tables.notifications).update({'read': true}).eq('id', notificationId);
   }
