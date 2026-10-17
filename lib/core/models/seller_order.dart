@@ -31,6 +31,7 @@ enum SellerOrderStatus {
   bool get needsAction => this == pending || this == confirmed;
 }
 
+/// Represents a sub-order assigned to an individual merchant/store for fulfillment.
 class SellerOrder {
   const SellerOrder({
     required this.id,
