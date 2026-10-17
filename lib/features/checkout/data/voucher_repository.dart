@@ -1,6 +1,7 @@
 import '../../../core/models/voucher.dart';
 import '../../../core/services/db.dart';
 
+/// Provides access to store discount vouchers and promotional campaign codes.
 class VoucherRepository {
   /// Public, promo-code-style vouchers — no per-user claiming/wallet, any
   /// signed-in shopper can apply an active code at checkout.
