@@ -69,6 +69,7 @@ class StatTile extends StatelessWidget {
   }
 }
 
+/// Navigation row with icon, title, subtitle, and an optional unread badge count.
 class DashboardNavRow extends StatelessWidget {
   const DashboardNavRow({super.key, required this.icon, required this.title, required this.subtitle, required this.onTap, this.badge = 0});
 
