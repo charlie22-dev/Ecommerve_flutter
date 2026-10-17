@@ -12,6 +12,7 @@ abstract class LibraryRepository {
 
   Future<void> toggleFavorite(String uid, String bookId, bool isFavorite);
 
+  /// Updates reading progress percent and current chapter position for a saved book.
   Future<void> updateProgress(
     String uid,
     String bookId, {
