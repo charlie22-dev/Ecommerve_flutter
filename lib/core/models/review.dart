@@ -46,6 +46,7 @@ class Review extends Equatable {
     );
   }
 
+  /// Converts this review to a map suitable for database insertion in Supabase.
   Map<String, dynamic> toRow() => {
         'book_id': bookId,
         'order_id': orderId.isEmpty ? null : orderId,
