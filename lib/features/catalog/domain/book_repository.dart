@@ -2,6 +2,7 @@ import '../../../core/models/book.dart';
 
 /// Repository interface for querying and modifying catalog books and collections.
 abstract class BookRepository {
+  /// Subscribes to changes in books featured within a specific home screen [section].
   Stream<List<Book>> watchSection(FeaturedSection section, {int limit = 12});
 
   Stream<List<Book>> watchCatalog({BookType? type, String? searchQuery, int limit = 40});
