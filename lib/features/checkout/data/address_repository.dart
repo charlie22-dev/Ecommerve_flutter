@@ -16,6 +16,7 @@ class AddressRepository {
     await db.from(Tables.addresses).upsert(address.toRow(uid));
   }
 
+  /// Deletes a saved shipping address belonging to the specified user [uid].
   Future<void> delete(String uid, String addressId) async {
     await db.from(Tables.addresses).delete().eq('id', addressId).eq('user_id', uid);
   }
