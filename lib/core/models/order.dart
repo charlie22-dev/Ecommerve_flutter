@@ -90,6 +90,7 @@ class OrderLineItem extends Equatable {
   List<Object?> get props => [bookId, unitPrice, quantity];
 }
 
+/// Represents a completed or pending customer purchase order across all stores.
 class Order extends Equatable {
   const Order({
     required this.id,
