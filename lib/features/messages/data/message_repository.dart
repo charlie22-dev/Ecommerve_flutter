@@ -10,6 +10,7 @@ class MessageRepository {
     });
   }
 
+  /// Sends a customer message to the store support conversation thread.
   Future<void> send(String uid, String text) async {
     await db
         .from(Tables.messages)
