@@ -4,6 +4,7 @@ import 'package:shimmer/shimmer.dart';
 
 import '../theme/app_color_tokens.dart';
 
+/// Renders a book cover image with caching, sizing optimization, and fallback states.
 class BookCoverImage extends StatefulWidget {
   const BookCoverImage({super.key, required this.url, this.borderRadius = 10, this.fit = BoxFit.cover});
 
