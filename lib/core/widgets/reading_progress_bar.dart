@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_color_tokens.dart';
 
+/// Horizontal indicator showing the reader's completion percentage for a book.
 class ReadingProgressBar extends StatelessWidget {
   const ReadingProgressBar({
     super.key,
