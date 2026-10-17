@@ -37,6 +37,7 @@ enum BookType {
       };
 }
 
+/// Physical and digital format variants available for a catalog item.
 enum BookFormat {
   paperback,
   hardcover,
