@@ -4,6 +4,7 @@ import '../../../core/models/book_collection.dart';
 abstract class CollectionRepository {
   Stream<List<BookCollection>> watchCollections(String uid);
 
+  /// Creates a new custom user collection and returns its unique ID.
   Future<String> create(String uid, {required String title, required String description});
 
   Future<void> addBook(String uid, String collectionId, String bookId);
