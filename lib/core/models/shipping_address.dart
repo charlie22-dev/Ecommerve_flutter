@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 
+/// Represents a buyer's saved delivery destination in their address book.
 class ShippingAddress extends Equatable {
   const ShippingAddress({
     required this.id,
