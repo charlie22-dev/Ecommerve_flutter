@@ -1,5 +1,6 @@
 import '../../../core/models/book_collection.dart';
 
+/// Repository interface managing custom user book collections and reading lists.
 abstract class CollectionRepository {
   Stream<List<BookCollection>> watchCollections(String uid);
 
