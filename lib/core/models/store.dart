@@ -75,6 +75,7 @@ class SellerApplication {
   final String? adminNote;
   final DateTime? createdAt;
 
+  /// Deserializes a seller onboarding application from a Supabase record row.
   factory SellerApplication.fromRow(Map<String, dynamic> row) => SellerApplication(
         id: row['id'] as String,
         userId: row['user_id'] as String,
