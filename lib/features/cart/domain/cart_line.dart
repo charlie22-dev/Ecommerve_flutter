@@ -10,6 +10,7 @@ class CartLine extends Equatable {
   final Book book;
   final int quantity;
 
+  /// Total cost of this line item calculated as book price multiplied by quantity.
   double get lineTotal => book.price * quantity;
 
   @override
