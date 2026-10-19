@@ -300,15 +300,19 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 const SizedBox(height: 12),
                 Container(
                   padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: colors.surfaceMuted, borderRadius: BorderRadius.circular(10)),
+                  decoration: BoxDecoration(
+                    color: colors.surfaceMuted,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: colors.borderSubtle),
+                  ),
                   child: Row(
                     children: [
-                      Icon(Icons.info_outline_rounded, size: 16, color: colors.textTertiary),
+                      Icon(Icons.shield_outlined, size: 16, color: colors.accentBlue),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'This payment method needs a connected PayMongo account and isn\'t live yet — choose Cash on Delivery to check out now.',
-                          style: TextStyle(color: colors.textTertiary, fontSize: 11.5),
+                          'Payment processed securely via Xendit (GCash, Maya, and Cards supported).',
+                          style: TextStyle(color: colors.textSecondary, fontSize: 11.5),
                         ),
                       ),
                     ],
