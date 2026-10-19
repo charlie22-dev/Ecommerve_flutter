@@ -7,6 +7,7 @@ import '../../../core/models/store_message.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_color_tokens.dart';
 import '../../../core/widgets/empty_state.dart';
+import '../../messages/data/typing_service.dart';
 import '../../messages/presentation/widgets/chat_thread.dart';
 import 'admin_providers.dart';
 import 'widgets/admin_table.dart';
@@ -78,15 +79,43 @@ class AdminMessagesScreen extends ConsumerWidget {
 }
 
 /// One customer's thread, answered as "BookVerse Store".
-class AdminConversationScreen extends ConsumerWidget {
+class AdminConversationScreen extends ConsumerStatefulWidget {
   const AdminConversationScreen({super.key, required this.customerUid});
   final String customerUid;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AdminConversationScreen> createState() => _AdminConversationScreenState();
+}
+
+class _AdminConversationScreenState extends ConsumerState<AdminConversationScreen> {
+  TypingService? _typingService;
+  bool _customerIsTyping = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Subscribe to the customer's typing channel as the store side.
+    _typingService = TypingService(userId: widget.customerUid, senderRole: 'store');
+    _typingService!.onOtherTyping.listen((isTyping) {
+      if (mounted) setState(() => _customerIsTyping = isTyping);
+    });
+  }
+
+  void _onTypingChanged(bool isTyping) {
+    _typingService?.sendTyping(isTyping);
+  }
+
+  @override
+  void dispose() {
+    _typingService?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final colors = context.colors;
-    final customer = ref.watch(adminCustomerProvider(customerUid)).value;
-    final messagesAsync = ref.watch(adminThreadMessagesProvider(customerUid));
+    final customer = ref.watch(adminCustomerProvider(widget.customerUid)).value;
+    final messagesAsync = ref.watch(adminThreadMessagesProvider(widget.customerUid));
     final name = customer?.label ?? 'Customer';
     final avatar = InitialAvatar(name, photoUrl: customer?.photoUrl);
 
@@ -110,6 +139,8 @@ class AdminConversationScreen extends ConsumerWidget {
                     messages: messages,
                     isMine: (m) => m.sender == MessageSender.store,
                     otherAvatar: avatar,
+                    // Show dots when the customer is actively typing.
+                    showTypingIndicator: _customerIsTyping,
                   ),
                   loading: () => Center(child: CircularProgressIndicator(color: colors.ink)),
                   error: (e, _) =>
@@ -118,7 +149,8 @@ class AdminConversationScreen extends ConsumerWidget {
               ),
               ChatComposer(
                 hint: 'Reply as BookVerse Store…',
-                onSend: (text) => ref.read(adminRepositoryProvider).sendStoreReply(customerUid, text),
+                onSend: (text) => ref.read(adminRepositoryProvider).sendStoreReply(widget.customerUid, text),
+                onTypingChanged: _onTypingChanged,
               ),
             ],
           ),
@@ -127,3 +159,4 @@ class AdminConversationScreen extends ConsumerWidget {
     );
   }
 }
+

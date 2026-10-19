@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/models/store_message.dart';
 import '../../../../core/theme/app_color_tokens.dart';
+import '../message_providers.dart';
 
 /// A chat in BookVerse's style, shared by the customer's chat and the
 /// admin's reply screen: newest at the bottom, your messages on the right in
@@ -14,12 +16,16 @@ class ChatThread extends StatelessWidget {
     required this.messages,
     required this.isMine,
     required this.otherAvatar,
+    this.showTypingIndicator = false,
   });
 
   /// Oldest first.
   final List<StoreMessage> messages;
   final bool Function(StoreMessage m) isMine;
   final Widget otherAvatar;
+
+  /// When true, shows a live animated "…" bubble from the other side.
+  final bool showTypingIndicator;
 
   static const _groupGap = Duration(minutes: 5);
 
@@ -37,14 +43,20 @@ class ChatThread extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final maxBubble = (constraints.maxWidth * 0.72).clamp(0.0, 480.0);
+        // +1 extra item slot at index 0 (reversed list = visually top) for typing
+        final extraItem = showTypingIndicator ? 1 : 0;
         return ListView.builder(
           // Reversed so the thread sits at the bottom, newest just above
           // the input, and new messages appear there without scrolling.
           reverse: true,
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          itemCount: messages.length,
+          itemCount: messages.length + extraItem,
           itemBuilder: (context, i) {
-            final index = messages.length - 1 - i;
+            // First slot (bottom of reversed list) = typing indicator
+            if (showTypingIndicator && i == 0) {
+              return _TypingIndicatorBubble(avatar: otherAvatar);
+            }
+            final index = messages.length - 1 - (i - extraItem);
             final m = messages[index];
             final older = index > 0 ? messages[index - 1] : null;
             final newer = index < messages.length - 1 ? messages[index + 1] : null;
@@ -66,6 +78,87 @@ class ChatThread extends StatelessWidget {
           },
         );
       },
+    );
+  }
+}
+
+/// Animated three-dot typing indicator bubble shown on the left (other side).
+class _TypingIndicatorBubble extends StatefulWidget {
+  const _TypingIndicatorBubble({required this.avatar});
+  final Widget avatar;
+  @override
+  State<_TypingIndicatorBubble> createState() => _TypingIndicatorBubbleState();
+}
+
+class _TypingIndicatorBubbleState extends State<_TypingIndicatorBubble>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 900))
+      ..repeat();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          widget.avatar,
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: colors.surfaceMuted,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(18),
+                topRight: Radius.circular(18),
+                bottomRight: Radius.circular(18),
+                bottomLeft: Radius.circular(4),
+              ),
+            ),
+            child: AnimatedBuilder(
+              animation: _ctrl,
+              builder: (context, _) {
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: List.generate(3, (i) {
+                    final delay = i / 3;
+                    final val = ((_ctrl.value - delay) % 1.0).clamp(0.0, 1.0);
+                    final opacity =
+                        (0.3 + 0.7 * (val < 0.5 ? val * 2 : (1 - val) * 2)).clamp(0.3, 1.0);
+                    return Padding(
+                      padding: EdgeInsets.only(right: i < 2 ? 4 : 0),
+                      child: Opacity(
+                        opacity: opacity,
+                        child: Container(
+                          width: 7,
+                          height: 7,
+                          decoration: BoxDecoration(
+                            color: colors.textSecondary,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -194,26 +287,46 @@ class _FadeIn extends StatelessWidget {
 
 /// The message box: a rounded field and an ink send button that only lights
 /// up when there's something to send. Enter sends.
-class ChatComposer extends StatefulWidget {
-  const ChatComposer({super.key, required this.hint, required this.onSend});
+class ChatComposer extends ConsumerStatefulWidget {
+  const ChatComposer({
+    super.key,
+    required this.hint,
+    required this.onSend,
+    this.onTypingChanged,
+  });
 
   final String hint;
 
   /// Returns once sent; the field clears only if it didn't throw.
   final Future<void> Function(String text) onSend;
 
+  /// Called with `true` when the user starts typing and `false` when they
+  /// clear the field or send — use this to broadcast typing state.
+  final void Function(bool isTyping)? onTypingChanged;
+
   @override
-  State<ChatComposer> createState() => _ChatComposerState();
+  ConsumerState<ChatComposer> createState() => _ChatComposerState();
 }
 
-class _ChatComposerState extends State<ChatComposer> {
+class _ChatComposerState extends ConsumerState<ChatComposer> {
   final _controller = TextEditingController();
   bool _sending = false;
+  bool _wasTyping = false;
 
   @override
   void initState() {
     super.initState();
-    _controller.addListener(() => setState(() {}));
+    _controller.addListener(() {
+      setState(() {});
+      final isTyping = _controller.text.trim().isNotEmpty;
+      // Update the Riverpod typing provider.
+      ref.read(isUserTypingProvider.notifier).state = isTyping;
+      // Notify the parent screen (which broadcasts to Supabase Realtime).
+      if (isTyping != _wasTyping) {
+        _wasTyping = isTyping;
+        widget.onTypingChanged?.call(isTyping);
+      }
+    });
   }
 
   @override
@@ -229,6 +342,12 @@ class _ChatComposerState extends State<ChatComposer> {
     try {
       await widget.onSend(text);
       _controller.clear();
+      // Clear the typing indicator after sending.
+      ref.read(isUserTypingProvider.notifier).state = false;
+      if (_wasTyping) {
+        _wasTyping = false;
+        widget.onTypingChanged?.call(false);
+      }
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not send: $e')));
     } finally {

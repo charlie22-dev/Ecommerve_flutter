@@ -56,45 +56,58 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
     showModalBottomSheet(
       context: context,
       backgroundColor: context.colors.surface,
+      isScrollControlled: true,
+      useSafeArea: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (sheetContext) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Filter by type', style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: 14),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    CategoryChip(
-                      label: 'All',
-                      selected: current == null,
+        return Padding(
+          padding: EdgeInsets.fromLTRB(
+              20, 12, 20, MediaQuery.viewInsetsOf(sheetContext).bottom + 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 14),
+                  decoration: BoxDecoration(
+                    color: context.colors.border,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              Text('Filter by type', style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  CategoryChip(
+                    label: 'All',
+                    selected: current == null,
+                    onTap: () {
+                      ref.read(discoverFilterProvider.notifier).update((s) => s.copyWith(clearType: true));
+                      Navigator.of(sheetContext).pop();
+                      setState(() {});
+                    },
+                  ),
+                  ...BookType.values.map(
+                    (type) => CategoryChip(
+                      label: type.label,
+                      selected: current == type,
                       onTap: () {
-                        ref.read(discoverFilterProvider.notifier).update((s) => s.copyWith(clearType: true));
+                        ref.read(discoverFilterProvider.notifier).update((s) => s.copyWith(type: type));
                         Navigator.of(sheetContext).pop();
                         setState(() {});
                       },
                     ),
-                    ...BookType.values.map(
-                      (type) => CategoryChip(
-                        label: type.label,
-                        selected: current == type,
-                        onTap: () {
-                          ref.read(discoverFilterProvider.notifier).update((s) => s.copyWith(type: type));
-                          Navigator.of(sheetContext).pop();
-                          setState(() {});
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+            ],
           ),
         );
       },

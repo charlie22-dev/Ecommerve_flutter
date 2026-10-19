@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models/store_message.dart';
 import '../../../core/theme/app_color_tokens.dart';
+import '../data/typing_service.dart';
 import 'message_providers.dart';
 import 'widgets/chat_thread.dart';
 
@@ -16,6 +17,35 @@ class ConversationScreen extends ConsumerStatefulWidget {
 
 class _ConversationScreenState extends ConsumerState<ConversationScreen> {
   bool _welcomeChecked = false;
+  TypingService? _typingService;
+  bool _storeIsTyping = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // TypingService needs the user's UID — we initialise it after the first
+    // frame so that authStateProvider is already available.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _initTyping());
+  }
+
+  void _initTyping() {
+    final uid = ref.read(authUidProvider);
+    if (uid == null || !mounted) return;
+    _typingService = TypingService(userId: uid, senderRole: 'user');
+    _typingService!.onOtherTyping.listen((isTyping) {
+      if (mounted) setState(() => _storeIsTyping = isTyping);
+    });
+  }
+
+  void _onTypingChanged(bool isTyping) {
+    _typingService?.sendTyping(isTyping);
+  }
+
+  @override
+  void dispose() {
+    _typingService?.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -51,6 +81,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
                     messages: thread,
                     isMine: (m) => m.sender == MessageSender.user,
                     otherAvatar: const StoreAvatar(),
+                    showTypingIndicator: _storeIsTyping,
                   ),
                   loading: () => Center(child: CircularProgressIndicator(color: colors.ink)),
                   error: (err, _) =>
@@ -60,6 +91,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
               ChatComposer(
                 hint: 'Type a message…',
                 onSend: (text) => ref.read(messageActionsProvider).send(text),
+                onTypingChanged: _onTypingChanged,
               ),
             ],
           ),

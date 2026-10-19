@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../theme/app_color_tokens.dart';
+import '../../features/notifications/presentation/notification_providers.dart';
 
 /// The persistent bottom-nav scaffold, wired to a
 /// `StatefulShellRoute.indexedStack` so each tab keeps its own scroll
@@ -11,7 +13,7 @@ import '../theme/app_color_tokens.dart';
 /// lives as a tappable bar on Home; Library (bookmarks/collections) and
 /// order tracking both moved under Me — see home_screen.dart and
 /// profile_screen.dart.
-class AppShell extends StatelessWidget {
+class AppShell extends ConsumerWidget {
   const AppShell({super.key, required this.navigationShell});
 
   final StatefulNavigationShell navigationShell;
@@ -30,7 +32,9 @@ class AppShell extends StatelessWidget {
   void _goTo(int i) => navigationShell.goBranch(i, initialLocation: i == navigationShell.currentIndex);
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final unreadCount = ref.watch(unreadNotificationCountProvider);
+
     if (MediaQuery.sizeOf(context).width >= wideBreakpoint) {
       return Scaffold(
         body: Column(
@@ -41,32 +45,79 @@ class AppShell extends StatelessWidget {
         ),
       );
     }
+    // extendBody lets the page content render behind the floating nav so it
+    // can scroll all the way to the bottom of the screen.
     return Scaffold(
+      extendBody: true,
       body: navigationShell,
-      bottomNavigationBar: DecoratedBox(
+      bottomNavigationBar: _FloatingNavBar(
+        items: _items,
+        currentIndex: navigationShell.currentIndex,
+        onTap: _goTo,
+        unreadCount: unreadCount,
+      ),
+    );
+  }
+}
+
+/// The floating pill nav bar shown on mobile. It sits 16 px above the device's
+/// bottom safe-area edge, is inset 16 px from each side, fully rounded, and
+/// casts a soft shadow — giving the "floating" look without any third-party
+/// packages. `Scaffold(extendBody: true)` lets page content scroll beneath it.
+class _FloatingNavBar extends StatelessWidget {
+  const _FloatingNavBar({
+    required this.items,
+    required this.currentIndex,
+    required this.onTap,
+    required this.unreadCount,
+  });
+
+  final List<({IconData icon, IconData activeIcon, String label})> items;
+  final int currentIndex;
+  final ValueChanged<int> onTap;
+  final int unreadCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
+    return Padding(
+      // Sit above the home indicator / nav bar, inset 16 px each side with top margin for floating effect.
+      padding: EdgeInsets.fromLTRB(16, 8, 16, bottomInset + 12),
+      child: DecoratedBox(
         decoration: BoxDecoration(
-          color: context.colors.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          color: colors.surface,
+          borderRadius: BorderRadius.circular(32),
+          border: Border.all(color: colors.border.withValues(alpha: 0.7)),
           boxShadow: [
-            BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 20, offset: const Offset(0, -4)),
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.16),
+              blurRadius: 24,
+              spreadRadius: 0,
+              offset: const Offset(0, 8),
+            ),
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
           ],
         ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                for (var i = 0; i < _items.length; i++)
-                  _NavItem(
-                    icon: _items[i].icon,
-                    activeIcon: _items[i].activeIcon,
-                    label: _items[i].label,
-                    selected: navigationShell.currentIndex == i,
-                    onTap: () => _goTo(i),
-                  ),
-              ],
-            ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              for (var i = 0; i < items.length; i++)
+                _NavItem(
+                  icon: items[i].icon,
+                  activeIcon: items[i].activeIcon,
+                  label: items[i].label,
+                  selected: currentIndex == i,
+                  onTap: () => onTap(i),
+                  badgeCount: i == 3 ? unreadCount : 0,
+                ),
+            ],
           ),
         ),
       ),
@@ -141,6 +192,7 @@ class _NavItem extends StatelessWidget {
     required this.label,
     required this.selected,
     required this.onTap,
+    this.badgeCount = 0,
   });
 
   final IconData icon;
@@ -149,8 +201,17 @@ class _NavItem extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
+  /// Number to show in the red badge bubble. 0 = no badge.
+  final int badgeCount;
+
   @override
   Widget build(BuildContext context) {
+    final iconWidget = Icon(
+      selected ? activeIcon : icon,
+      size: 22,
+      color: selected ? context.colors.ink : context.colors.textTertiary,
+    );
+
     return Semantics(
       button: true,
       selected: selected,
@@ -174,11 +235,34 @@ class _NavItem extends StatelessWidget {
                     color: selected ? context.colors.surfaceMuted : Colors.transparent,
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: Icon(
-                    selected ? activeIcon : icon,
-                    size: 22,
-                    color: selected ? context.colors.ink : context.colors.textTertiary,
-                  ),
+                  child: badgeCount > 0
+                      ? Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            iconWidget,
+                            Positioned(
+                              right: -6,
+                              top: -6,
+                              child: Container(
+                                padding: const EdgeInsets.all(3),
+                                decoration: const BoxDecoration(
+                                  color: Colors.red,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Text(
+                                  badgeCount > 99 ? '99+' : '$badgeCount',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold,
+                                    height: 1,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        )
+                      : iconWidget,
                 ),
                 const SizedBox(height: 4),
                 Text(
