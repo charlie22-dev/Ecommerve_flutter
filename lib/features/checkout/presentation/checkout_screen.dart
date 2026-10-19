@@ -62,11 +62,18 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     switch (result) {
       case CheckoutAwaitingRedirect(:final orderId, :final checkoutUrl):
         final success = await Navigator.of(context).push<bool>(
-          MaterialPageRoute(builder: (_) => PaymentWebViewScreen(checkoutUrl: checkoutUrl)),
+          MaterialPageRoute(builder: (_) => PaymentWebViewScreen(checkoutUrl: checkoutUrl, orderId: orderId)),
         );
         if (!mounted) return;
         if (success == true) {
           await controller.clearCartAfterPayment();
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Payment Verified! Order has been placed.'),
+              backgroundColor: Colors.green,
+            ),
+          );
         }
         if (!mounted) return;
         context.go('/order-confirmation/$orderId');
