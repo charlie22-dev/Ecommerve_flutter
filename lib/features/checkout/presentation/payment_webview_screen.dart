@@ -148,7 +148,7 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
         ],
       ),
       backgroundColor: colors.background,
-      body: false
+      body: kIsWeb
           ? Center(
               child: Padding(
                 padding: const EdgeInsets.all(24.0),
