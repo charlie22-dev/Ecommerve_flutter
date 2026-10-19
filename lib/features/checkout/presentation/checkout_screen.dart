@@ -82,23 +82,24 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   }
 
   Future<CheckoutResult> _submitCard(CheckoutController controller) async {
-    final parts = _expiry.text.split('/');
-    if (parts.length != 2 || _cardNumber.text.trim().isEmpty || _cvc.text.trim().isEmpty) {
-      return const CheckoutFailed('Enter complete card details.');
-    }
-    final month = int.tryParse(parts[0].trim());
-    final year = int.tryParse(parts[1].trim());
-    if (month == null || year == null) {
-      return const CheckoutFailed('Enter a valid expiry as MM/YY.');
+    final email = _cardEmail.text.trim();
+    final name = _cardName.text.trim();
+    int month = 12;
+    int year = 2030;
+    if (_expiry.text.isNotEmpty && _expiry.text.contains('/')) {
+      final parts = _expiry.text.split('/');
+      month = int.tryParse(parts[0].trim()) ?? 12;
+      final y = int.tryParse(parts[1].trim()) ?? 30;
+      year = y < 100 ? 2000 + y : y;
     }
 
     return controller.payWithCard(
-      cardNumber: _cardNumber.text,
+      cardNumber: _cardNumber.text.trim(),
       expMonth: month,
-      expYear: year < 100 ? 2000 + year : year,
+      expYear: year,
       cvc: _cvc.text.trim(),
-      billingName: _cardName.text.trim(),
-      billingEmail: _cardEmail.text.trim(),
+      billingName: name,
+      billingEmail: email,
     );
   }
 
