@@ -9,6 +9,30 @@ class CheckoutFunctionsService {
 
   final FunctionsClient _functions;
 
+  /// Creates a Xendit Invoice for online payments (GCash, Maya, Card, etc.)
+  /// and returns the hosted invoice data including `invoice_url`.
+  Future<Map<String, dynamic>> createXenditInvoice({
+    required String orderId,
+    required double amount,
+    String? description,
+    String? customerEmail,
+    String? paymentMethod,
+  }) async {
+    final result = await _functions.invoke('create-invoice', body: {
+      'orderId': orderId,
+      'order_id': orderId,
+      'amount': amount,
+      'description': description ?? 'Order #${orderId.substring(0, 8)}',
+      'product_name': description ?? 'Order #${orderId.substring(0, 8)}',
+      'customerEmail': customerEmail,
+      'paymentMethod': paymentMethod,
+    });
+    if (result.status != 200) {
+      throw Exception('Failed to create payment invoice: ${result.data}');
+    }
+    return Map<String, dynamic>.from(result.data as Map);
+  }
+
   /// Creates a PayMongo e-wallet `source` and returns the hosted checkout
   /// URL to open in a WebView.
   Future<String> createEwalletSource({
