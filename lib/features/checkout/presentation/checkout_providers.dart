@@ -153,26 +153,20 @@ class CheckoutController extends AsyncNotifier<void> {
     state = const AsyncLoading();
     try {
       final order = await _placeOrder(PaymentMethod.card);
-
-      final paymentMethodId = await ref.read(paymongoClientProvider).createPaymentMethod(
-            cardNumber: cardNumber,
-            expMonth: expMonth,
-            expYear: expYear,
-            cvc: cvc,
-            billingName: billingName,
-            billingEmail: billingEmail,
-          );
-
-      final result = await ref.read(checkoutFunctionsServiceProvider).payWithCard(
+      final email = billingEmail.isNotEmpty
+          ? billingEmail
+          : ref.read(authStateProvider).value?.email;
+      final invoice = await ref.read(checkoutFunctionsServiceProvider).createXenditInvoice(
             orderId: order.id,
             amount: order.total,
-            paymentMethodId: paymentMethodId,
+            description: 'Order #${order.id.substring(0, 8).toUpperCase()}',
+            customerEmail: email,
+            paymentMethod: 'card',
           );
 
+      final invoiceUrl = (invoice['invoice_url'] ?? invoice['invoiceUrl']) as String;
       state = const AsyncData(null);
-      if (result.status == 'succeeded') return CheckoutSucceeded(order.id);
-      if (result.redirectUrl != null) return CheckoutAwaitingRedirect(order.id, result.redirectUrl!);
-      return const CheckoutFailed('Payment could not be completed.');
+      return CheckoutAwaitingRedirect(order.id, invoiceUrl);
     } catch (e) {
       state = AsyncError(e, StackTrace.current);
       return CheckoutFailed(_friendlyError(e));
