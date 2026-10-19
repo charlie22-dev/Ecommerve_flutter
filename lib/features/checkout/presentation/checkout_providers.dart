@@ -124,14 +124,18 @@ class CheckoutController extends AsyncNotifier<void> {
     state = const AsyncLoading();
     try {
       final order = await _placeOrder(type == 'gcash' ? PaymentMethod.gcash : PaymentMethod.maya);
-      final checkoutUrl = await ref.read(checkoutFunctionsServiceProvider).createEwalletSource(
+      final email = ref.read(authStateProvider).value?.email;
+      final invoice = await ref.read(checkoutFunctionsServiceProvider).createXenditInvoice(
             orderId: order.id,
             amount: order.total,
-            type: type,
+            description: 'Order #${order.id.substring(0, 8).toUpperCase()}',
+            customerEmail: email,
+            paymentMethod: type,
           );
 
+      final invoiceUrl = (invoice['invoice_url'] ?? invoice['invoiceUrl']) as String;
       state = const AsyncData(null);
-      return CheckoutAwaitingRedirect(order.id, checkoutUrl);
+      return CheckoutAwaitingRedirect(order.id, invoiceUrl);
     } catch (e) {
       state = AsyncError(e, StackTrace.current);
       return CheckoutFailed(_friendlyError(e));
