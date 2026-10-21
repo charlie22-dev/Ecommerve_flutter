@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/admin/presentation/admin_providers.dart';
 import '../../features/cart/presentation/cart_providers.dart';
 import '../router/app_routes.dart';
 import '../theme/app_color_tokens.dart';
@@ -13,6 +14,9 @@ class CartIconButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isAdmin = ref.watch(isAdminProvider);
+    if (isAdmin) return const SizedBox.shrink();
+
     final count = ref.watch(cartCountProvider);
 
     return Semantics(
