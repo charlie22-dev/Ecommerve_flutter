@@ -1,10 +1,10 @@
-import 'package:equatable/equatable.dart';
+﻿import 'package:equatable/equatable.dart';
 
 import '../services/db.dart';
 
 /// Every readable/collectible type the catalog supports. New types can be
 /// added here by also adding them to the `books.type` check constraint in
-/// supabase/schema.sql — `Book` stores every field as optional so any
+/// supabase/schema.sql â€” `Book` stores every field as optional so any
 /// combination of type/format fits one row shape.
 enum BookType {
   book,
@@ -57,7 +57,7 @@ enum BookFormat {
 
 /// Curated genre chip options for the admin/seller product form.
 /// Kept as a plain list (not an enum) so new genres can be added in the
-/// dashboard without touching the Dart code — `Book.genres` itself is a
+/// dashboard without touching the Dart code â€” `Book.genres` itself is a
 /// free-form string list and imposes no restrictions.
 const kGenreOptions = <String>[
   'Romance',
@@ -119,6 +119,7 @@ class Book extends Equatable {
     this.moderationNote,
     this.createdAt,
     this.updatedAt,
+    this.storeId,
   });
 
   final String id;
@@ -146,7 +147,7 @@ class Book extends Equatable {
   /// instead of a chapter fraction.
   final int? totalChapters;
 
-  /// draft · pending_review · published · rejected · suspended · archived.
+  /// draft Â· pending_review Â· published Â· rejected Â· suspended Â· archived.
   /// Only `published` listings appear in the store; sellers can't publish
   /// their own (the `guard_book_write` trigger in supabase/schema.sql).
   final String listingStatus;
@@ -155,6 +156,10 @@ class Book extends Equatable {
   final String? moderationNote;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+
+  /// The store that listed this book. Null for platform-direct books or when
+  /// the row was fetched without the `store_id` column.
+  final String? storeId;
 
   /// Returns true when at least one unit is available to purchase.
   bool get inStock => stock > 0;
@@ -186,6 +191,7 @@ class Book extends Equatable {
       moderationNote: row['moderation_note'] as String?,
       createdAt: parseTimestamp(row['created_at']),
       updatedAt: parseTimestamp(row['updated_at']),
+      storeId: row['store_id'] as String?,
     );
   }
 
