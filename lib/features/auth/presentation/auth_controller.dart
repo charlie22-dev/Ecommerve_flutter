@@ -79,7 +79,7 @@ class AuthController extends AsyncNotifier<void> {
         'user_banned' => 'This account has been disabled.',
         'signup_disabled' => 'New sign-ups are currently disabled.',
         'over_email_send_rate_limit' || 'over_request_rate_limit' =>
-          'Too many attempts. Please wait a minute and try again.',
+          'Email limit reached (free Supabase tier allows 3 emails/hr). Disable "Confirm email" in Supabase (Auth > Providers > Email) to sign up instantly.',
         'provider_disabled' => 'This sign-in method isn\'t enabled yet.',
         'launch_failed' => 'Could not open the sign-in page.',
         _ => error.message.isNotEmpty ? error.message : 'Something went wrong. Please try again.',
