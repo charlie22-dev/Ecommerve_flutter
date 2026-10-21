@@ -5,7 +5,6 @@ import 'package:intl/intl.dart';
 
 import '../../../core/auth/require_login.dart';
 import '../../../core/models/book.dart';
-import '../../../core/models/library_entry.dart';
 import '../../../core/theme/app_color_tokens.dart';
 import '../../../core/widgets/book_cover_image.dart';
 import '../../../core/widgets/primary_button.dart';
@@ -14,7 +13,6 @@ import '../../admin/presentation/admin_providers.dart';
 import '../../cart/presentation/cart_providers.dart';
 import '../../catalog/presentation/catalog_providers.dart';
 import '../../library/presentation/collection_providers.dart';
-import '../../library/presentation/library_providers.dart';
 import '../../library/presentation/widgets/create_collection_sheet.dart';
 import '../../reviews/presentation/review_providers.dart';
 import '../../reviews/presentation/widgets/reviews_section.dart';
@@ -65,7 +63,6 @@ class _BookDetailsBodyState extends ConsumerState<_BookDetailsBody> {
     final book = widget.book;
     final wishlistIds = ref.watch(wishlistIdsProvider).value ?? const {};
     final isWishlisted = wishlistIds.contains(book.id);
-    final libraryEntry = ref.watch(libraryEntryProvider(book.id)).value;
     final isAdmin = ref.watch(isAdminProvider);
 
     return CustomScrollView(
@@ -97,16 +94,6 @@ class _BookDetailsBodyState extends ConsumerState<_BookDetailsBody> {
                 if (ensureLoggedIn(context, ref)) _showCollectionPicker(context, ref, book.id);
               },
             ),
-            IconButton(
-              tooltip: libraryEntry == null ? 'Add to Library' : 'On shelf: ${libraryEntry.shelf.label}',
-              icon: Icon(
-                libraryEntry == null ? Icons.auto_stories_outlined : Icons.auto_stories_rounded,
-                color: libraryEntry == null ? context.colors.textPrimary : context.colors.ink,
-              ),
-              onPressed: () {
-                if (ensureLoggedIn(context, ref)) _showShelfPicker(context, ref, book.id, libraryEntry);
-              },
-            ),
           ],
         ),
         SliverToBoxAdapter(
@@ -125,6 +112,10 @@ class _BookDetailsBodyState extends ConsumerState<_BookDetailsBody> {
                   Text(book.title, style: Theme.of(context).textTheme.headlineSmall),
                   const SizedBox(height: 4),
                   Text('by ${book.author}', style: TextStyle(color: context.colors.textSecondary, fontSize: 14)),
+                  if (book.storeId != null) ...[
+                    const SizedBox(height: 4),
+                    _StoreName(storeId: book.storeId!),
+                  ],
                   const SizedBox(height: 10),
                   // Live aggregate from the `reviews` collection — the same
                   // source the Reviews section below lists — not the seeded
@@ -139,52 +130,56 @@ class _BookDetailsBodyState extends ConsumerState<_BookDetailsBody> {
                     children: [_Tag(book.type.label), _Tag(book.format.label), ...book.genres.map(_Tag.new)],
                   ),
                   const SizedBox(height: 20),
-                  if (libraryEntry != null) ...[
-                    _LibraryProgressCard(book: book, entry: libraryEntry),
-                    const SizedBox(height: 20),
-                  ],
-                  Row(
-                    children: [
-                      Expanded(
-                        child: PrimaryButton(
-                          label: book.inStock ? 'Add to Cart · ₱${book.price.toStringAsFixed(0)}' : 'Out of stock',
-                          icon: Icons.shopping_cart_rounded,
-                          onPressed: book.inStock
-                              ? () {
-                                  if (!ensureLoggedIn(context, ref)) return;
-                                  ref.read(cartActionsProvider).add(book.id);
-                                  ScaffoldMessenger.of(context)
-                                      .showSnackBar(const SnackBar(content: Text('Added to cart')));
-                                }
-                              : null,
+                  if (isAdmin)
+                    PrimaryButton(
+                      label: 'Edit in Admin Panel',
+                      icon: Icons.edit_note_rounded,
+                      onPressed: () => context.push('/admin/product/${book.id}/edit'),
+                    )
+                  else ...[
+                    Row(
+                      children: [
+                        Expanded(
+                          child: PrimaryButton(
+                            label: book.inStock ? 'Add to Cart · ₱${book.price.toStringAsFixed(0)}' : 'Out of stock',
+                            icon: Icons.shopping_cart_rounded,
+                            onPressed: book.inStock
+                                ? () {
+                                    if (!ensureLoggedIn(context, ref)) return;
+                                    ref.read(cartActionsProvider).add(book.id);
+                                    ScaffoldMessenger.of(context)
+                                        .showSnackBar(const SnackBar(content: Text('Added to cart')));
+                                  }
+                                : null,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  // Buy Now adds this book to the cart (if not already there)
-                  // and jumps straight to checkout — if other items are
-                  // already in the cart, they come along too, same as most
-                  // ecommerce apps' "buy now" shortcut. Solid orange (not the
-                  // theme's ink color) so it reads as the urgent CTA next to
-                  // the neutral "Add to Cart" button above.
-                  ElevatedButton.icon(
-                    onPressed: book.inStock
-                        ? () async {
-                            if (!ensureLoggedIn(context, ref)) return;
-                            await ref.read(cartActionsProvider).add(book.id);
-                            if (context.mounted) context.push('/checkout');
-                          }
-                        : null,
-                    icon: const Icon(Icons.bolt_rounded, size: 18),
-                    label: const Text('Buy Now'),
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(48),
-                      backgroundColor: context.colors.accentOrange,
-                      foregroundColor: context.colors.onAccentOrange,
-                      disabledBackgroundColor: context.colors.accentOrange.withValues(alpha: 0.35),
+                      ],
                     ),
-                  ),
+                    const SizedBox(height: 10),
+                    // Buy Now adds this book to the cart (if not already there)
+                    // and jumps straight to checkout — if other items are
+                    // already in the cart, they come along too, same as most
+                    // ecommerce apps' "buy now" shortcut. Solid orange (not the
+                    // theme's ink color) so it reads as the urgent CTA next to
+                    // the neutral "Add to Cart" button above.
+                    ElevatedButton.icon(
+                      onPressed: book.inStock
+                          ? () async {
+                              if (!ensureLoggedIn(context, ref)) return;
+                              await ref.read(cartActionsProvider).add(book.id);
+                              if (context.mounted) context.push('/checkout');
+                            }
+                          : null,
+                      icon: const Icon(Icons.bolt_rounded, size: 18),
+                      label: const Text('Buy Now'),
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(48),
+                        backgroundColor: context.colors.accentOrange,
+                        foregroundColor: context.colors.onAccentOrange,
+                        disabledBackgroundColor: context.colors.accentOrange.withValues(alpha: 0.35),
+                      ),
+                    ),
+                  ],
                 ];
                 final more = <Widget>[
                   const SizedBox(height: 28),
@@ -248,34 +243,6 @@ class _BookDetailsBodyState extends ConsumerState<_BookDetailsBody> {
   }
 
   static bool wide(BoxConstraints c) => c.maxWidth >= 700;
-
-  void _showShelfPicker(BuildContext context, WidgetRef ref, String bookId, LibraryEntry? current) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: context.colors.surface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (context) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: ReadingShelf.values.map((shelf) {
-              return ListTile(
-                leading: Icon(
-                  current?.shelf == shelf ? Icons.radio_button_checked : Icons.radio_button_off,
-                  color: current?.shelf == shelf ? context.colors.ink : context.colors.textTertiary,
-                ),
-                title: Text(shelf.label, style: TextStyle(color: context.colors.textPrimary)),
-                onTap: () {
-                  ref.read(libraryActionsProvider).addToShelf(bookId, shelf);
-                  Navigator.of(context).pop();
-                },
-              );
-            }).toList(),
-          ),
-        );
-      },
-    );
-  }
 
   void _showCollectionPicker(BuildContext context, WidgetRef ref, String bookId) {
     showModalBottomSheet(
@@ -377,56 +344,6 @@ class _RatingSummary extends ConsumerWidget {
   }
 }
 
-class _LibraryProgressCard extends ConsumerWidget {
-  const _LibraryProgressCard({required this.book, required this.entry});
-
-  final Book book;
-  final LibraryEntry entry;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final total = book.totalChapters;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: context.colors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: context.colors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('Your progress', style: TextStyle(color: context.colors.textSecondary, fontSize: 13)),
-              Text(
-                '${entry.progressPercent.round()}%',
-                style: TextStyle(color: context.colors.ink, fontWeight: FontWeight.w800),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Slider(
-            value: entry.progressPercent.clamp(0, 100),
-            onChanged: (value) {
-              final chapter = total != null ? (total * value / 100).round() : entry.currentChapter;
-              ref.read(libraryActionsProvider).updateProgress(book.id, progressPercent: value, currentChapter: chapter);
-            },
-            activeColor: context.colors.ink,
-            inactiveColor: context.colors.border,
-          ),
-          if (total != null)
-            Text(
-              'Chapter ${entry.currentChapter} of $total',
-              style: TextStyle(color: context.colors.textTertiary, fontSize: 12),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
 class _DetailsTable extends StatelessWidget {
   const _DetailsTable({required this.book});
 
@@ -476,6 +393,31 @@ class _Tag extends StatelessWidget {
         border: Border.all(color: context.colors.border),
       ),
       child: Text(label, style: TextStyle(color: context.colors.textSecondary, fontSize: 12)),
+    );
+  }
+}
+
+class _StoreName extends ConsumerWidget {
+  const _StoreName({required this.storeId});
+  final String storeId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final storeNameAsync = ref.watch(storeNameProvider(storeId));
+    final name = storeNameAsync.value ?? 'BookVerse Official';
+    return Row(
+      children: [
+        Icon(Icons.storefront_rounded, size: 16, color: context.colors.ink),
+        const SizedBox(width: 5),
+        Text(
+          'Seller: $name',
+          style: TextStyle(
+            color: context.colors.ink,
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
     );
   }
 }
