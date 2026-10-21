@@ -6,6 +6,18 @@ class SupabaseBookRepository implements BookRepository {
   @override
   Stream<List<Book>> watchSection(FeaturedSection section, {int limit = 12}) {
     return watchQuery(Tables.books, () async {
+      // "New Releases" = any recently-published book (including seller books),
+      // sorted by created_at desc. All other rails use the curated
+      // featured_sections tag so admins can hand-pick what appears there.
+      if (section == FeaturedSection.newReleases) {
+        final rows = await db
+            .from(Tables.books)
+            .select()
+            .eq('listing_status', 'published')
+            .order('created_at', ascending: false)
+            .limit(limit);
+        return rows.map(Book.fromRow).toList();
+      }
       final rows = await db
           .from(Tables.books)
           .select()
