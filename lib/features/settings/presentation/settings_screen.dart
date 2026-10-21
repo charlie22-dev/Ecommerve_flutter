@@ -17,7 +17,7 @@ class SettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.colors;
-    final themeMode = ref.watch(themeModeProvider).value ?? ThemeMode.light;
+    final themeMode = ref.watch(themeModeProvider).value ?? ThemeMode.dark;
     final isDeleting = ref.watch(profileEditControllerProvider).isLoading;
 
     ref.listen(profileEditControllerProvider, (previous, next) {

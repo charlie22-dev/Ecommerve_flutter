@@ -31,7 +31,7 @@ class VouchersScreen extends ConsumerWidget {
             );
           }
           return ListView.separated(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
             itemCount: vouchers.length,
             separatorBuilder: (_, _) => const SizedBox(height: 14),
             itemBuilder: (context, i) => _CouponTicket(

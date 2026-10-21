@@ -172,7 +172,7 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
                 // Website-style cover grid on wide screens; the list on phones.
                 if (MediaQuery.sizeOf(context).width >= 700) {
                   return GridView.builder(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
                     gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
                       maxCrossAxisExtent: 180,
                       childAspectRatio: 0.5,
@@ -188,7 +188,7 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
                   );
                 }
                 return ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
                   itemCount: books.length,
                   separatorBuilder: (_, _) => Divider(height: 1, color: context.colors.borderSubtle),
                   itemBuilder: (context, i) {

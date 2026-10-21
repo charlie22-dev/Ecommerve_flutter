@@ -118,14 +118,70 @@ class ReviewTile extends StatelessWidget {
         ],
         if (review.photoUrl != null && review.photoUrl!.isNotEmpty) ...[
           const SizedBox(height: 8),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: Image.network(
-              review.photoUrl!,
-              height: 100,
-              width: 100,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+          GestureDetector(
+            onTap: () {
+              showDialog(
+                context: context,
+                builder: (ctx) => Dialog(
+                  backgroundColor: Colors.black.withValues(alpha: 0.92),
+                  insetPadding: EdgeInsets.zero,
+                  child: Stack(
+                    children: [
+                      Center(
+                        child: InteractiveViewer(
+                          maxScale: 4.0,
+                          child: Image.network(
+                            review.photoUrl!,
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        top: MediaQuery.paddingOf(ctx).top + 10,
+                        right: 16,
+                        child: CircleAvatar(
+                          backgroundColor: Colors.black54,
+                          child: IconButton(
+                            icon: const Icon(Icons.close_rounded, color: Colors.white),
+                            onPressed: () => Navigator.of(ctx).pop(),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Stack(
+                alignment: Alignment.bottomRight,
+                children: [
+                  Image.network(
+                    review.photoUrl!,
+                    height: 220,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+                  ),
+                  Container(
+                    margin: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.6),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.zoom_in_rounded, color: Colors.white, size: 14),
+                        SizedBox(width: 4),
+                        Text('Tap to view', style: TextStyle(color: Colors.white, fontSize: 11)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],

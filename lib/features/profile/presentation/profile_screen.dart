@@ -4,8 +4,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/auth/require_login.dart';
 import '../../../core/dev/dev_preview.dart';
-import '../../../core/models/library_entry.dart';
-import '../../../core/models/reader_badge.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_color_tokens.dart';
 import '../../../core/widgets/cart_icon_button.dart';
@@ -14,7 +12,6 @@ import '../../admin/presentation/admin_providers.dart';
 import '../../auth/presentation/auth_controller.dart';
 import '../../auth/presentation/auth_providers.dart';
 import '../../checkout/presentation/orders_screen.dart';
-import '../../library/presentation/library_providers.dart';
 import '../../seller/presentation/seller_providers.dart';
 import '../../settings/presentation/settings_screen.dart';
 import '../../wishlist/presentation/wishlist_providers.dart';
@@ -39,15 +36,7 @@ class ProfileScreen extends ConsumerWidget {
     final appUser = ref.watch(appUserProvider).value;
     final isAdmin = ref.watch(isAdminProvider);
     final hasStore = ref.watch(myStoreProvider).value != null;
-    final currentlyReading =
-        ref.watch(shelfEntriesProvider(ReadingShelf.currentlyReading)).value?.length ?? 0;
     final savedCount = ref.watch(wishlistIdsProvider).value?.length ?? 0;
-
-    final badges = ReaderBadge.compute(
-      booksCompletedCount: appUser?.booksCompletedCount ?? 0,
-      streakCount: appUser?.streakCount ?? 0,
-      longestStreak: appUser?.longestStreak ?? 0,
-    );
 
     // SingleChildScrollView (not a fixed Column) so content taller than the
     // viewport — long badge lists, large Dynamic Type scales — scrolls
@@ -56,7 +45,7 @@ class ProfileScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Me'),
         actions: [
-          const CartIconButton(),
+          if (!isAdmin) const CartIconButton(),
           Semantics(
             button: true,
             label: 'Messages',
@@ -76,7 +65,7 @@ class ProfileScreen extends ConsumerWidget {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 116),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -107,84 +96,44 @@ class ProfileScreen extends ConsumerWidget {
                   ],
                 ),
               ),
-              const SizedBox(height: 28),
-              Row(
-                children: [
-                  _StatCard(
-                    icon: Icons.local_fire_department_rounded,
-                    value: '${appUser?.streakCount ?? 0}',
-                    label: 'Day streak',
-                    color: context.colors.ink,
-                  ),
-                  const SizedBox(width: 12),
-                  _StatCard(
-                    icon: Icons.menu_book_rounded,
-                    value: '${appUser?.booksCompletedCount ?? 0}',
-                    label: 'Completed',
-                    color: context.colors.success,
-                  ),
-                  const SizedBox(width: 12),
-                  _StatCard(
-                    icon: Icons.auto_stories_rounded,
-                    value: '$currentlyReading',
-                    label: 'Reading',
-                    color: context.colors.info,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 28),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('My Orders', style: Theme.of(context).textTheme.titleMedium),
-                  Semantics(
-                    button: true,
-                    label: 'See all orders',
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(8),
-                      onTap: () => context.push('/orders'),
-                      child: const Padding(
-                        padding: EdgeInsets.all(4),
-                        child: Text('See All', style: TextStyle(fontSize: 13)),
+              if (!isAdmin) ...[
+                const SizedBox(height: 28),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('My Orders', style: Theme.of(context).textTheme.titleMedium),
+                    Semantics(
+                      button: true,
+                      label: 'See all orders',
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(8),
+                        onTap: () => context.push('/orders'),
+                        child: const Padding(
+                          padding: EdgeInsets.all(4),
+                          child: Text('See All', style: TextStyle(fontSize: 13)),
+                        ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  _OrderStatusIcon(icon: Icons.payments_outlined, label: 'To Pay', tab: OrderTab.toPay),
-                  _OrderStatusIcon(icon: Icons.inventory_2_outlined, label: 'To Ship', tab: OrderTab.toShip),
-                  _OrderStatusIcon(icon: Icons.local_shipping_outlined, label: 'To Receive', tab: OrderTab.toReceive),
-                  _OrderStatusIcon(icon: Icons.star_outline_rounded, label: 'To Rate', tab: OrderTab.toRate),
-                ],
-              ),
-              const SizedBox(height: 28),
-              Text('Badges', style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: 12),
-              // Wrap (not a GridView with a fixed aspect ratio) — badge
-              // tiles size to their own content, so a longer title or a
-              // larger Dynamic Type scale reflows instead of overflowing
-              // a height Flutter computed from the grid's aspect ratio.
-              Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                children: badges.map((badge) => _BadgeTile(badge: badge)).toList(),
-              ),
-              const SizedBox(height: 28),
-              Text('Library', style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: 4),
-              Divider(height: 1, color: context.colors.borderSubtle),
-              _ProfileListRow(
-                icon: Icons.bookmark_border_rounded,
-                label: 'Saved Books',
-                trailingText: '$savedCount',
-                onTap: () => context.push(AppRoute.library),
-              ),
-              Divider(height: 1, color: context.colors.borderSubtle),
-              // Admins run the marketplace; they don't sell on it.
-              if (!isAdmin) ...[
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    _OrderStatusIcon(icon: Icons.payments_outlined, label: 'To Pay', tab: OrderTab.toPay),
+                    _OrderStatusIcon(icon: Icons.inventory_2_outlined, label: 'To Ship', tab: OrderTab.toShip),
+                    _OrderStatusIcon(icon: Icons.local_shipping_outlined, label: 'To Receive', tab: OrderTab.toReceive),
+                    _OrderStatusIcon(icon: Icons.star_outline_rounded, label: 'To Rate', tab: OrderTab.toRate),
+                  ],
+                ),
+                const SizedBox(height: 28),
+                Divider(height: 1, color: context.colors.borderSubtle),
+                _ProfileListRow(
+                  icon: Icons.bookmark_border_rounded,
+                  label: 'Saved Books',
+                  trailingText: '$savedCount',
+                  onTap: () => context.push(AppRoute.library),
+                ),
+                Divider(height: 1, color: context.colors.borderSubtle),
                 _ProfileListRow(
                   icon: Icons.storefront_outlined,
                   label: hasStore ? 'Seller Center' : 'Become a Seller',
@@ -193,10 +142,56 @@ class ProfileScreen extends ConsumerWidget {
                 Divider(height: 1, color: context.colors.borderSubtle),
               ],
               if (isAdmin) ...[
+                const SizedBox(height: 28),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: context.colors.ink.withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: context.colors.ink.withValues(alpha: 0.18)),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: context.colors.ink,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(Icons.shield_rounded, color: context.colors.onInk, size: 20),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Administrator Account',
+                              style: TextStyle(
+                                color: context.colors.textPrimary,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 14.5,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Full access to marketplace management & catalog',
+                              style: TextStyle(color: context.colors.textSecondary, fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Divider(height: 1, color: context.colors.borderSubtle),
                 _ProfileListRow(
                   icon: Icons.admin_panel_settings_outlined,
-                  label: 'Admin Panel',
-                  onTap: () => context.push(AppRoute.admin),
+                  label: 'Go to Admin Panel',
+                  iconColor: context.colors.ink,
+                  labelColor: context.colors.ink,
+                  onTap: () => context.go(AppRoute.admin),
                 ),
                 Divider(height: 1, color: context.colors.borderSubtle),
               ],
@@ -254,7 +249,7 @@ class _GuestMeScreen extends ConsumerWidget {
               Text('Welcome to BookVerse', style: Theme.of(context).textTheme.headlineSmall, textAlign: TextAlign.center),
               const SizedBox(height: 6),
               Text(
-                'Sign in to see your orders, saved books, badges, and more.',
+                'Sign in to see your orders, saved books, and more.',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: colors.textSecondary, fontSize: 13),
               ),
@@ -273,42 +268,6 @@ class _GuestMeScreen extends ConsumerWidget {
               Divider(height: 1, color: colors.borderSubtle),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _StatCard extends StatelessWidget {
-  const _StatCard({required this.icon, required this.value, required this.label, required this.color});
-  final IconData icon;
-  final String value;
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 4),
-        decoration: BoxDecoration(
-          color: context.colors.surface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: context.colors.border),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: color, size: 22),
-            const SizedBox(height: 8),
-            Text(value, style: TextStyle(color: context.colors.textPrimary, fontWeight: FontWeight.w800, fontSize: 18)),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              style: TextStyle(color: context.colors.textTertiary, fontSize: 11),
-            ),
-          ],
         ),
       ),
     );
@@ -342,42 +301,6 @@ class _OrderStatusIcon extends StatelessWidget {
               ],
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _BadgeTile extends StatelessWidget {
-  const _BadgeTile({required this.badge});
-  final ReaderBadge badge;
-
-  @override
-  Widget build(BuildContext context) {
-    final earned = badge.isEarned;
-    return Opacity(
-      opacity: earned ? 1 : 0.4,
-      child: Container(
-        width: 100,
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-        decoration: BoxDecoration(
-          color: context.colors.surface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: earned ? context.colors.ink : context.colors.border),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(badge.icon, color: earned ? context.colors.ink : context.colors.textTertiary, size: 26),
-            const SizedBox(height: 6),
-            Text(
-              badge.title,
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: context.colors.textPrimary, fontSize: 11, fontWeight: FontWeight.w700),
-            ),
-          ],
         ),
       ),
     );

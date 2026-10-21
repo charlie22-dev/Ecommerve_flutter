@@ -41,6 +41,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     return Scaffold(
       body: SafeArea(
+        bottom: false,
         child: CustomScrollView(
           slivers: [
             SliverToBoxAdapter(
@@ -121,7 +122,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ),
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
               sliver: allBooksAsync.when(
                 data: (books) {
                   if (books.isEmpty) {
