@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models/book.dart';
+import '../../../core/services/db.dart';
 import '../data/supabase_book_repository.dart';
 import '../domain/book_repository.dart';
 
@@ -70,6 +71,13 @@ final discoverBooksProvider = StreamProvider<List<Book>>((ref) {
 
 final bookByIdProvider = FutureProvider.family<Book?, String>((ref, bookId) {
   return ref.watch(bookRepositoryProvider).getById(bookId);
+});
+
+/// Fetches the display name of the store that sells this book.
+final storeNameProvider = FutureProvider.family<String, String>((ref, storeId) async {
+  if (storeId.isEmpty) return 'BookVerse';
+  final row = await db.from('stores').select('name').eq('id', storeId).maybeSingle();
+  return row?['name'] as String? ?? 'BookVerse';
 });
 
 class ExploreCategoryPick {
