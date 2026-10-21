@@ -96,12 +96,26 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // guaranteed to resolve before the dialog closes. If this branch also
       // consumed `pendingReturnLocationProvider`, whichever of the two fired
       // first would clear it out from under the other.
-      if (isLoggedIn && isAuthRoute) return AppRoute.home;
+      final isAdmin = ref.read(isAdminProvider);
+
+      if (isLoggedIn && isAuthRoute) {
+        return isAdmin ? AppRoute.admin : AppRoute.home;
+      }
 
       // Admin routes are guarded here too, not just hidden from the UI, so
       // a non-admin can't reach them by deep link either.
-      if (state.matchedLocation.startsWith('/admin') && !ref.read(isAdminProvider)) {
+      if (state.matchedLocation.startsWith('/admin') && !isAdmin) {
         return AppRoute.home;
+      }
+
+      // Admins only have the Admin Panel — they cannot shop, order, or use customer cart/checkout.
+      if (isLoggedIn && isAdmin && !state.matchedLocation.startsWith('/admin')) {
+        // Allow profile (for settings/logout), auth, and messages
+        const adminAllowed = [AppRoute.profile, AppRoute.auth, '/messages', '/admin'];
+        final isAllowed = adminAllowed.any(
+          (p) => state.matchedLocation == p || state.matchedLocation.startsWith('$p/'),
+        );
+        if (!isAllowed) return AppRoute.admin;
       }
       return null;
     },
