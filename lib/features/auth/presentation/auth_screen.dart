@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/auth/pending_return_location.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_color_tokens.dart';
 import '../../../core/widgets/primary_button.dart';
+import '../../admin/presentation/admin_providers.dart';
 import '../domain/auth_repository.dart';
 import 'auth_controller.dart';
 import 'auth_validators.dart';
@@ -83,25 +85,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         displayName: _signupName.text.trim(),
       );
       if (result == SignUpResult.needsEmailConfirmation) {
-        // The account exists but the Supabase project requires email
-        // confirmation before the first login — not an error. Hand the
-        // user over to the Login tab with their email filled in.
         if (!mounted) return;
-        setState(() {
-          _isLogin = true;
-          _loginEmail.text = email;
-        });
-        _signupFormKey.currentState?.reset();
-        _signupName.clear();
-        _signupEmail.clear();
-        _signupPassword.clear();
-        _signupConfirmPassword.clear();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            duration: const Duration(seconds: 6),
-            content: Text('Account created! We sent a confirmation link to $email — confirm it, then log in.'),
-          ),
-        );
+        _showEmailVerificationSheet(context, email);
         return;
       }
       ok = result != null;
@@ -127,9 +112,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
   Future<void> _continueWithGoogle() =>
       _continueWithProvider(() => ref.read(authControllerProvider.notifier).signInWithGoogle());
-
-  Future<void> _continueWithFacebook() =>
-      _continueWithProvider(() => ref.read(authControllerProvider.notifier).signInWithFacebook());
 
   Future<void> _continueWithProvider(Future<bool> Function() signIn) async {
     // On web the page leaves for Google/Facebook and the app reloads, so
@@ -157,9 +139,395 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   /// of the intended destination. This call is the deterministic one.
   void _goToReturnLocation() {
     if (!mounted) return;
+    final isAdmin = ref.read(isAdminProvider);
+    if (isAdmin) {
+      context.go(AppRoute.admin);
+      return;
+    }
     final target = ref.read(pendingReturnLocationProvider);
     ref.read(pendingReturnLocationProvider.notifier).state = null;
     context.go(target ?? AppRoute.home);
+  }
+
+  void _showEmailVerificationSheet(BuildContext context, String email) {
+    final codeController = TextEditingController();
+    bool isVerifying = false;
+    bool isResending = false;
+    String? errorText;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: context.colors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                24,
+                20,
+                24,
+                MediaQuery.of(context).viewInsets.bottom + 28,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 44,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: context.colors.border,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: context.colors.ink.withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(Icons.mark_email_read_rounded, color: context.colors.ink, size: 24),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Verify Your Email',
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Enter the 6-digit code sent to\n$email',
+                              style: TextStyle(color: context.colors.textSecondary, fontSize: 12.5),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  TextField(
+                    controller: codeController,
+                    keyboardType: TextInputType.number,
+                    maxLength: 6,
+                    autofocus: true,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: context.colors.textPrimary,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 8,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: '000000',
+                      counterText: '',
+                      errorText: errorText,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  PrimaryButton(
+                    label: 'Verify & Activate Account',
+                    isLoading: isVerifying,
+                    onPressed: () async {
+                      final code = codeController.text.trim();
+                      if (code.length < 6) {
+                        setSheetState(() => errorText = 'Enter the 6-digit verification code');
+                        return;
+                      }
+                      setSheetState(() {
+                        isVerifying = true;
+                        errorText = null;
+                      });
+                      try {
+                        final res = await Supabase.instance.client.auth.verifyOTP(
+                          email: email,
+                          token: code,
+                          type: OtpType.signup,
+                        );
+                        if (!mounted) return;
+                        if (sheetContext.mounted) Navigator.of(sheetContext).pop();
+                        if (res.session != null) {
+                          await LoginSuccessDialog.show(this.context, isNewAccount: true);
+                          _goToReturnLocation();
+                        } else {
+                          ScaffoldMessenger.of(this.context).showSnackBar(
+                            const SnackBar(content: Text('Account verified! You can now log in.')),
+                          );
+                        }
+                      } catch (e) {
+                        try {
+                          final res2 = await Supabase.instance.client.auth.verifyOTP(
+                            email: email,
+                            token: code,
+                            type: OtpType.email,
+                          );
+                          if (!mounted) return;
+                          if (sheetContext.mounted) Navigator.of(sheetContext).pop();
+                          if (res2.session != null) {
+                            await LoginSuccessDialog.show(this.context, isNewAccount: true);
+                            _goToReturnLocation();
+                          } else {
+                            ScaffoldMessenger.of(this.context).showSnackBar(
+                              const SnackBar(content: Text('Account verified! You can now log in.')),
+                            );
+                          }
+                        } catch (e2) {
+                          setSheetState(() {
+                            isVerifying = false;
+                            errorText = 'Invalid or expired code. Please try again.';
+                          });
+                        }
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text("Didn't receive the code? ", style: TextStyle(color: context.colors.textSecondary, fontSize: 13)),
+                      TextButton(
+                        onPressed: isResending
+                            ? null
+                            : () async {
+                                setSheetState(() => isResending = true);
+                                try {
+                                  await Supabase.instance.client.auth.resend(email: email, type: OtpType.signup);
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Verification code resent!')),
+                                    );
+                                  }
+                                } catch (e) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('Could not resend: $e')),
+                                    );
+                                  }
+                                } finally {
+                                  setSheetState(() => isResending = false);
+                                }
+                              },
+                        child: Text(isResending ? 'Sending...' : 'Resend'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Center(
+                    child: TextButton(
+                      onPressed: () {
+                        Navigator.of(sheetContext).pop();
+                        setState(() {
+                          _isLogin = true;
+                          _loginEmail.text = email;
+                        });
+                      },
+                      child: const Text('Already verified? Go to Login'),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showPhoneSignInSheet() {
+    final phoneController = TextEditingController(text: '+63');
+    final otpController = TextEditingController();
+    bool codeSent = false;
+    bool isLoading = false;
+    String? errorText;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: context.colors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                24,
+                20,
+                24,
+                MediaQuery.of(context).viewInsets.bottom + 28,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 44,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: context.colors.border,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: context.colors.ink.withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(Icons.phone_iphone_rounded, color: context.colors.ink, size: 24),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              codeSent ? 'Enter SMS Code' : 'Sign in with Phone',
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              codeSent
+                                  ? 'Enter the 6-digit code sent to ${phoneController.text}'
+                                  : 'We will send a 6-digit verification code to your number',
+                              style: TextStyle(color: context.colors.textSecondary, fontSize: 12.5),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  if (!codeSent) ...[
+                    TextField(
+                      controller: phoneController,
+                      keyboardType: TextInputType.phone,
+                      autofocus: true,
+                      style: TextStyle(color: context.colors.textPrimary, fontSize: 16),
+                      decoration: InputDecoration(
+                        labelText: 'Phone Number',
+                        hintText: '+63 912 345 6789',
+                        errorText: errorText,
+                        prefixIcon: const Icon(Icons.phone_outlined),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    PrimaryButton(
+                      label: 'Send Verification Code',
+                      isLoading: isLoading,
+                      onPressed: () async {
+                        final phone = phoneController.text.trim();
+                        if (phone.length < 10) {
+                          setSheetState(() => errorText = 'Please enter a valid phone number');
+                          return;
+                        }
+                        setSheetState(() {
+                          isLoading = true;
+                          errorText = null;
+                        });
+                        try {
+                          await Supabase.instance.client.auth.signInWithOtp(phone: phone);
+                          setSheetState(() {
+                            codeSent = true;
+                            isLoading = false;
+                          });
+                        } catch (e) {
+                          setSheetState(() {
+                            isLoading = false;
+                            errorText = 'Could not send SMS code: $e';
+                          });
+                        }
+                      },
+                    ),
+                  ] else ...[
+                    TextField(
+                      controller: otpController,
+                      keyboardType: TextInputType.number,
+                      maxLength: 6,
+                      autofocus: true,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: context.colors.textPrimary,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 8,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: '000000',
+                        counterText: '',
+                        errorText: errorText,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    PrimaryButton(
+                      label: 'Verify & Sign In',
+                      isLoading: isLoading,
+                      onPressed: () async {
+                        final otp = otpController.text.trim();
+                        if (otp.length < 6) {
+                          setSheetState(() => errorText = 'Enter 6-digit code');
+                          return;
+                        }
+                        setSheetState(() {
+                          isLoading = true;
+                          errorText = null;
+                        });
+                        try {
+                          final res = await Supabase.instance.client.auth.verifyOTP(
+                            phone: phoneController.text.trim(),
+                            token: otp,
+                            type: OtpType.sms,
+                          );
+                          if (!mounted) return;
+                          if (sheetContext.mounted) Navigator.of(sheetContext).pop();
+                          if (res.session != null) {
+                            await LoginSuccessDialog.show(this.context, isNewAccount: false);
+                            _goToReturnLocation();
+                          }
+                        } catch (e) {
+                          setSheetState(() {
+                            isLoading = false;
+                            errorText = 'Invalid or expired code. Please try again.';
+                          });
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                    TextButton(
+                      onPressed: () => setSheetState(() {
+                        codeSent = false;
+                        errorText = null;
+                      }),
+                      child: const Text('Change phone number'),
+                    ),
+                  ],
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   void _forgotPassword() {
@@ -207,18 +575,28 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Center(child: Image.asset('assets/branding/logo.png', height: 150, semanticLabel: 'BookVerse')),
-                const SizedBox(height: 20),
+                Center(child: Image.asset('assets/branding/logo.png', height: 125, semanticLabel: 'BookVerse')),
+                const SizedBox(height: 10),
                 Text(
-                  _isLogin ? 'Welcome back \u{1F44B}' : 'Create your account ✨',
+                  'BookVerse',
                   textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.headlineSmall,
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.5,
+                        color: context.colors.textPrimary,
+                      ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 8),
+                Text(
+                  _isLogin ? 'Welcome back' : 'Create an Account',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 4),
                 Text(
                   _isLogin
-                      ? 'Enter your details to access your account'
-                      : "Let's get your shelf set up",
+                      ? 'Sign in to access your library, cart, and orders'
+                      : 'Join BookVerse and explore thousands of books',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: context.colors.textSecondary, fontSize: 13),
                 ),
@@ -260,10 +638,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: _SocialButton(
-                        label: 'Facebook',
+                        label: 'Phone',
                         isLoading: authState.isLoading,
-                        onPressed: _continueWithFacebook,
-                        icon: const Icon(Icons.facebook_rounded, color: Color(0xFF1877F2), size: 22),
+                        onPressed: _showPhoneSignInSheet,
+                        icon: Icon(Icons.phone_iphone_rounded, color: context.colors.textPrimary, size: 20),
                       ),
                     ),
                   ],
