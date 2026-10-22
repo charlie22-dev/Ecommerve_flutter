@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/models/order.dart';
 import '../../../core/models/shipping_option.dart';
 import '../../../core/theme/app_color_tokens.dart';
+import '../../../core/widgets/book_cover_image.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../../cart/presentation/cart_providers.dart';
 import 'address_providers.dart';
@@ -173,24 +174,81 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               _SectionCard(
                 child: Column(
                   children: [
-                    for (final l in lines)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                '${l.book.title} ×${l.quantity}',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(color: colors.textSecondary, fontSize: 13),
+                    for (var i = 0; i < lines.length; i++) ...[
+                      if (i > 0)
+                        Divider(height: 20, thickness: 1, color: colors.border.withValues(alpha: 0.5)),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  lines[i].book.title,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: colors.textPrimary,
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                               ),
-                            ),
-                            Text('₱${l.lineTotal.toStringAsFixed(2)}', style: TextStyle(color: colors.textPrimary, fontSize: 13)),
-                          ],
-                        ),
+                              const SizedBox(width: 12),
+                              Text(
+                                '₱${lines[i].lineTotal.toStringAsFixed(2)}',
+                                style: TextStyle(
+                                  color: colors.textPrimary,
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              SizedBox(
+                                width: 38,
+                                height: 52,
+                                child: BookCoverImage(
+                                  url: lines[i].book.coverUrl,
+                                  borderRadius: 6,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    if (lines[i].book.author.isNotEmpty)
+                                      Text(
+                                        'by ${lines[i].book.author}',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          color: colors.textSecondary,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Qty: ${lines[i].quantity}  ·  ₱${lines[i].book.price.toStringAsFixed(2)} each',
+                                      style: TextStyle(
+                                        color: colors.textTertiary,
+                                        fontSize: 11.5,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
+                    ],
                   ],
                 ),
               ),

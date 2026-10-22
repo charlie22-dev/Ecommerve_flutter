@@ -141,7 +141,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       crossAxisCount: 2,
                       mainAxisSpacing: 18,
                       crossAxisSpacing: 14,
-                      childAspectRatio: 0.48,
+                      childAspectRatio: 0.44,
                     ),
                     delegate: SliverChildBuilderDelegate(
                       (context, i) {
@@ -149,6 +149,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         return BookCard(
                           book: book,
                           width: double.infinity,
+                          showAddToCartButton: true,
                           onTap: () => context.push('/home/book/${book.id}'),
                         );
                       },

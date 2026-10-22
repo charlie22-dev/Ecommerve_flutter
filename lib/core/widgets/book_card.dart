@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../features/cart/presentation/cart_providers.dart';
+import '../auth/require_login.dart';
 import '../models/book.dart';
+import '../router/app_routes.dart';
 import '../theme/app_color_tokens.dart';
 import 'book_cover_image.dart';
 import 'rating_stars.dart';
 
 /// Catalog grid/rail card: cover, optional pill tag, title, author,
-/// rating, and price.
-class BookCard extends StatelessWidget {
+/// rating, price, and add-to-cart quick action.
+class BookCard extends ConsumerWidget {
   const BookCard({
     super.key,
     required this.book,
@@ -15,6 +20,8 @@ class BookCard extends StatelessWidget {
     this.width = 148,
     this.badgeLabel,
     this.trailing,
+    this.showAddToCartButton = false,
+    this.onAddToCart,
   });
 
   final Book book;
@@ -22,9 +29,31 @@ class BookCard extends StatelessWidget {
   final double width;
   final String? badgeLabel;
   final Widget? trailing;
+  final bool showAddToCartButton;
+  final VoidCallback? onAddToCart;
+
+  void _handleAddToCart(BuildContext context, WidgetRef ref) {
+    if (!book.inStock) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('This book is out of stock')));
+      return;
+    }
+    if (!ensureLoggedIn(context, ref)) return;
+    ref.read(cartActionsProvider).add(book.id);
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Added "${book.title}" to cart'),
+        duration: const Duration(seconds: 2),
+        action: SnackBarAction(
+          label: 'View Cart',
+          onPressed: () => context.push(AppRoute.cart),
+        ),
+      ),
+    );
+  }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return GestureDetector(
       onTap: onTap,
       child: SizedBox(
@@ -60,6 +89,42 @@ class BookCard extends StatelessWidget {
                       ),
                     ),
                   if (trailing != null) Positioned(top: 6, right: 6, child: trailing!),
+                  Positioned(
+                    bottom: 8,
+                    right: 8,
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () {
+                          if (onAddToCart != null) {
+                            onAddToCart!();
+                          } else {
+                            _handleAddToCart(context, ref);
+                          }
+                        },
+                        borderRadius: BorderRadius.circular(18),
+                        child: Container(
+                          padding: const EdgeInsets.all(7),
+                          decoration: BoxDecoration(
+                            color: book.inStock ? context.colors.ink : context.colors.surfaceMuted,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.28),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Icon(
+                            Icons.add_shopping_cart_rounded,
+                            size: 15,
+                            color: book.inStock ? context.colors.onInk : context.colors.textTertiary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -97,6 +162,36 @@ class BookCard extends StatelessWidget {
                   ),
               ],
             ),
+            if (showAddToCartButton) ...[
+              const SizedBox(height: 6),
+              SizedBox(
+                width: double.infinity,
+                height: 30,
+                child: ElevatedButton.icon(
+                  onPressed: book.inStock
+                      ? () {
+                          if (onAddToCart != null) {
+                            onAddToCart!();
+                          } else {
+                            _handleAddToCart(context, ref);
+                          }
+                        }
+                      : null,
+                  icon: const Icon(Icons.add_shopping_cart_rounded, size: 13),
+                  label: Text(
+                    book.inStock ? 'Add to Cart' : 'Out of stock',
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    backgroundColor: context.colors.ink,
+                    foregroundColor: context.colors.onInk,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),

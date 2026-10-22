@@ -59,7 +59,12 @@ class CollectionCard extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 14),
-            Text(collection.title, style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              collection.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             if (collection.description.isNotEmpty) ...[
               const SizedBox(height: 2),
               Text(

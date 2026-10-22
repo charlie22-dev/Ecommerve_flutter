@@ -104,7 +104,7 @@ class LibraryScreen extends ConsumerWidget {
                         child: Text('Recently Saved', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
                       ),
                       SizedBox(
-                        height: 158,
+                        height: 210,
                         child: ListView.separated(
                           scrollDirection: Axis.horizontal,
                           padding: const EdgeInsets.symmetric(horizontal: 16),

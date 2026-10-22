@@ -1252,6 +1252,30 @@ grant update (read) on public.notifications to authenticated;
 -- Messages (one buyer <-> store thread per user)
 -- -----------------------------------------------------------------------------
 
+create or replace function public.notify_seller_on_message(
+  p_store_id uuid,
+  p_title text,
+  p_body text
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_owner uuid;
+begin
+  select owner_id into v_owner from public.stores where id = p_store_id;
+  if v_owner is not null and v_owner <> auth.uid() then
+    insert into public.notifications (user_id, category, title, body)
+    values (v_owner, 'announcement', p_title, p_body);
+  end if;
+end;
+$$;
+
+revoke execute on function public.notify_seller_on_message(uuid, text, text) from public, anon;
+grant execute on function public.notify_seller_on_message(uuid, text, text) to authenticated;
+
 create table if not exists public.messages (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users (id) on delete cascade,

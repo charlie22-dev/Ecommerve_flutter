@@ -11,6 +11,7 @@ import '../../../core/theme/app_color_tokens.dart';
 import '../../../core/widgets/dashboard_tiles.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../../auth/presentation/auth_providers.dart';
+import '../../messages/presentation/message_providers.dart';
 import 'seller_providers.dart';
 import 'seller_rules.dart';
 
@@ -54,6 +55,8 @@ class _Dashboard extends ConsumerWidget {
     final listings = ref.watch(myListingsProvider).value ?? const [];
     final orders = ref.watch(myStoreOrdersProvider).value ?? const <SellerOrder>[];
     final rate = ref.watch(myCommissionRateProvider).value;
+    final threads = ref.watch(sellerInboxProvider(store.id)).value ?? const [];
+    final unreadMessages = threads.where((t) => t.needsReply).length;
 
     final delivered = orders.where((o) => o.status == SellerOrderStatus.delivered);
     final gross = delivered.fold<double>(0, (sum, o) => sum + o.subtotal);
@@ -157,6 +160,15 @@ class _Dashboard extends ConsumerWidget {
             subtitle: toFulfill == 0 ? 'Confirm, ship and track your orders' : '$toFulfill waiting for you',
             badge: toFulfill,
             onTap: () => context.push(AppRoute.sellerOrders),
+          ),
+          DashboardNavRow(
+            icon: Icons.chat_bubble_outline_rounded,
+            title: 'Messages',
+            subtitle: unreadMessages == 0
+                ? 'Reply to customer inquiries'
+                : '$unreadMessages waiting for reply',
+            badge: unreadMessages,
+            onTap: () => context.push(AppRoute.sellerMessages),
           ),
           DashboardNavRow(
             icon: Icons.menu_book_outlined,

@@ -223,7 +223,7 @@ class _Bubble extends StatelessWidget {
         ),
       ),
       child: Text(
-        message.text,
+        message.displayContent,
         style: TextStyle(color: mine ? colors.onInk : colors.textPrimary, fontSize: 14, height: 1.35),
       ),
     );
