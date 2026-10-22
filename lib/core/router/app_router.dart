@@ -34,6 +34,8 @@ import '../../features/profile/presentation/edit_profile_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/reviews/presentation/reviews_list_screen.dart';
 import '../../features/seller/presentation/seller_center_screen.dart';
+import '../../features/seller/presentation/seller_conversation_screen.dart';
+import '../../features/seller/presentation/seller_messages_screen.dart';
 import '../../features/seller/presentation/seller_orders_screen.dart';
 import '../../features/seller/presentation/seller_products_screen.dart';
 import '../../features/vouchers/presentation/coupon_detail_screen.dart';
@@ -176,6 +178,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: AppRoute.sellerProducts, builder: (context, state) => const SellerProductsScreen()),
       GoRoute(path: AppRoute.sellerOrders, builder: (context, state) => const SellerOrdersScreen()),
       GoRoute(
+        path: AppRoute.sellerMessages,
+        builder: (context, state) => const SellerMessagesScreen(),
+        routes: [
+          GoRoute(
+            path: ':uid',
+            builder: (context, state) => SellerConversationScreen(
+              customerUid: state.pathParameters['uid']!,
+              storeId: state.uri.queryParameters['storeId'] ?? '',
+            ),
+          ),
+        ],
+      ),
+      GoRoute(
         path: AppRoute.sellerAddProduct,
         builder: (context, state) => const AdminProductFormScreen(sellerMode: true),
       ),
@@ -224,6 +239,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const MessagesScreen(),
         routes: [
           GoRoute(path: 'store', builder: (context, state) => const ConversationScreen()),
+          GoRoute(
+            path: 'seller/:storeId',
+            builder: (context, state) => ConversationScreen(
+              storeId: state.pathParameters['storeId'],
+              storeName: state.uri.queryParameters['name'],
+            ),
+          ),
         ],
       ),
       GoRoute(
