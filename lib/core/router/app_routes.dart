@@ -39,4 +39,5 @@ abstract final class AppRoute {
   static const sellerOrders = '/seller/orders';
   static const sellerAddProduct = '/seller/product';
   static const sellerEditProduct = '/seller/product'; // + '/:id/edit'
+  static const sellerMessages = '/seller/messages'; // + '/:uid?storeId=...'
 }
