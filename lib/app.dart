@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
@@ -63,14 +64,64 @@ class _BookVerseAppState extends ConsumerState<BookVerseApp> {
       darkTheme: AppTheme.dark,
       themeMode: themeMode,
       routerConfig: router,
-      builder: (context, child) => ListenableBuilder(
-        listenable: router.routerDelegate,
-        builder: (context, _) => _WebFrame(
-          // The admin panel uses the full width for its sidebar and tables.
-          enabled: !router.routerDelegate.currentConfiguration.uri.path.startsWith('/admin'),
-          child: child!,
-        ),
+      builder: (context, child) => _WebFrameRouterSync(
+        router: router,
+        child: child!,
       ),
+    );
+  }
+}
+
+/// Safely syncs web frame width with current router route without triggering
+/// "setState() or markNeedsBuild() called during build" during router initialization.
+class _WebFrameRouterSync extends StatefulWidget {
+  const _WebFrameRouterSync({required this.router, required this.child});
+
+  final GoRouter router;
+  final Widget child;
+
+  @override
+  State<_WebFrameRouterSync> createState() => _WebFrameRouterSyncState();
+}
+
+class _WebFrameRouterSyncState extends State<_WebFrameRouterSync> {
+  @override
+  void initState() {
+    super.initState();
+    widget.router.routerDelegate.addListener(_onRouteChanged);
+  }
+
+  @override
+  void didUpdateWidget(_WebFrameRouterSync oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.router != widget.router) {
+      oldWidget.router.routerDelegate.removeListener(_onRouteChanged);
+      widget.router.routerDelegate.addListener(_onRouteChanged);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.router.routerDelegate.removeListener(_onRouteChanged);
+    super.dispose();
+  }
+
+  void _onRouteChanged() {
+    // If the router notifies during a build phase (e.g. during initial route
+    // resolution on web), defer setState to the next frame to prevent
+    // "setState() or markNeedsBuild() called during build" assertion failures.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final path = widget.router.routerDelegate.currentConfiguration.uri.path;
+    return _WebFrame(
+      // The admin panel uses the full width for its sidebar and tables.
+      enabled: !path.startsWith('/admin'),
+      child: widget.child,
     );
   }
 }
