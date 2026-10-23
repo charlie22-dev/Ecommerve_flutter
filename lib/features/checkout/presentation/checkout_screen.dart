@@ -7,7 +7,6 @@ import '../../../core/models/shipping_option.dart';
 import '../../../core/theme/app_color_tokens.dart';
 import '../../../core/widgets/book_cover_image.dart';
 import '../../../core/widgets/primary_button.dart';
-import '../../cart/presentation/cart_providers.dart';
 import 'address_providers.dart';
 import 'checkout_providers.dart';
 import 'payment_webview_screen.dart';
@@ -36,6 +35,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     _cvc.dispose();
     _cardName.dispose();
     _cardEmail.dispose();
+    Future.microtask(() {
+      try {
+        ref.read(buyNowItemProvider.notifier).state = null;
+      } catch (_) {}
+    });
     super.dispose();
   }
 
@@ -114,7 +118,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final linesAsync = ref.watch(cartLinesProvider);
+    final linesAsync = ref.watch(checkoutLinesProvider);
+    final isDirectBuy = ref.watch(buyNowItemProvider) != null;
     final selectedMethod = ref.watch(selectedPaymentMethodProvider);
     final selectedShipping = ref.watch(selectedShippingOptionProvider);
     final address = ref.watch(selectedAddressProvider);
@@ -169,7 +174,29 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               ),
               const SizedBox(height: 16),
 
-              Text('Items', style: Theme.of(context).textTheme.titleMedium),
+              Row(
+                children: [
+                  Text(isDirectBuy ? 'Direct Purchase Item' : 'Items', style: Theme.of(context).textTheme.titleMedium),
+                  if (isDirectBuy) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: colors.accentOrange.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        'Buy Now · Cart Unaffected',
+                        style: TextStyle(
+                          color: colors.accentOrange,
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
               const SizedBox(height: 10),
               _SectionCard(
                 child: Column(
