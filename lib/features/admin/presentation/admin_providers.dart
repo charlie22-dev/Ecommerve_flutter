@@ -57,7 +57,7 @@ final adminTodoProvider = Provider.autoDispose<
     sellerApplications:
         (ref.watch(adminApplicationsProvider).value ?? const []).where((a) => a.status == 'pending').length,
     listingsToReview: ref.watch(adminListingReviewProvider).value?.length ?? 0,
-    unansweredMessages: (ref.watch(adminThreadsProvider).value ?? const []).where((t) => t.needsReply).length,
+    unansweredMessages: (ref.watch(adminConversationsProvider).value ?? const []).where((c) => c.unreadCount > 0).length,
   );
 });
 
