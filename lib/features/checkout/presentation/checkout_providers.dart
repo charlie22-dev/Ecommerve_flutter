@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
 import 'package:uuid/uuid.dart';
 
+import '../../../core/models/book.dart';
+import '../../cart/domain/cart_line.dart';
 import '../../../core/models/order.dart';
 import '../../../core/models/shipping_option.dart';
 import '../../auth/presentation/auth_providers.dart';
@@ -11,6 +13,25 @@ import '../data/order_repository.dart';
 import '../data/paymongo_client.dart';
 import 'address_providers.dart';
 import 'voucher_providers.dart';
+
+
+/// Single item for direct "Buy Now" flow (leaves the shopping cart intact)
+class BuyNowItem {
+  const BuyNowItem({required this.book, this.quantity = 1});
+  final Book book;
+  final int quantity;
+}
+
+final buyNowItemProvider = StateProvider<BuyNowItem?>((ref) => null);
+
+/// Active lines for checkout: single Buy Now item, or the cart if normal checkout
+final checkoutLinesProvider = Provider<AsyncValue<List<CartLine>>>((ref) {
+  final buyNow = ref.watch(buyNowItemProvider);
+  if (buyNow != null) {
+    return AsyncData([CartLine(book: buyNow.book, quantity: buyNow.quantity)]);
+  }
+  return ref.watch(cartLinesProvider);
+});
 
 final orderRepositoryProvider = Provider((ref) => OrderRepository());
 final checkoutFunctionsServiceProvider = Provider((ref) => CheckoutFunctionsService());
@@ -67,6 +88,18 @@ class CheckoutController extends AsyncNotifier<void> {
   Future<void> build() async {}
 
   Future<List<OrderLineItem>> _lineItems() async {
+    final buyNow = ref.read(buyNowItemProvider);
+    if (buyNow != null) {
+      return [
+        OrderLineItem(
+          bookId: buyNow.book.id,
+          title: buyNow.book.title,
+          coverUrl: buyNow.book.coverUrl,
+          unitPrice: buyNow.book.price,
+          quantity: buyNow.quantity,
+        ),
+      ];
+    }
     final lines = await ref.read(cartLinesProvider.future);
     return lines
         .map((l) => OrderLineItem(
@@ -174,8 +207,15 @@ class CheckoutController extends AsyncNotifier<void> {
   }
 
   Future<void> clearCartAfterPayment() async {
-    final lines = ref.read(cartLinesProvider).value ?? const [];
-    await ref.read(cartActionsProvider).clear(lines.map((l) => l.book.id).toList());
+    final buyNow = ref.read(buyNowItemProvider);
+    if (buyNow != null) {
+      // Direct buy completed: do NOT wipe out user's shopping cart!
+      ref.read(buyNowItemProvider.notifier).state = null;
+    } else {
+      // Regular cart checkout: clear only the purchased cart items
+      final lines = ref.read(cartLinesProvider).value ?? const [];
+      await ref.read(cartActionsProvider).clear(lines.map((l) => l.book.id).toList());
+    }
     ref.read(appliedVoucherProvider.notifier).state = null;
   }
 }
