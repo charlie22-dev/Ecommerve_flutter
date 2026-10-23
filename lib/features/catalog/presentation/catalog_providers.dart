@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models/book.dart';
+import '../../../core/models/store.dart';
 import '../../../core/services/db.dart';
 import '../data/supabase_book_repository.dart';
 import '../domain/book_repository.dart';
@@ -78,6 +79,14 @@ final storeNameProvider = FutureProvider.family<String, String>((ref, storeId) a
   if (storeId.isEmpty) return 'BookVerse';
   final row = await db.from('stores').select('name').eq('id', storeId).maybeSingle();
   return row?['name'] as String? ?? 'BookVerse';
+});
+
+/// Fetches the full store record by ID.
+final storeByIdProvider = FutureProvider.family<Store?, String>((ref, storeId) async {
+  if (storeId.isEmpty) return null;
+  final row = await db.from('stores').select().eq('id', storeId).maybeSingle();
+  if (row == null) return null;
+  return Store.fromRow(row);
 });
 
 class ExploreCategoryPick {
