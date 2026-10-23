@@ -11,9 +11,9 @@ import '../../../core/theme/app_color_tokens.dart';
 import '../../../core/widgets/dashboard_tiles.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../../auth/presentation/auth_providers.dart';
-import '../../messages/presentation/message_providers.dart';
 import 'seller_providers.dart';
 import 'seller_rules.dart';
+import '../../messages/presentation/message_providers.dart';
 
 /// Seller Center: the application form (or its status) until an admin
 /// approves the user, then the store dashboard.
@@ -55,8 +55,7 @@ class _Dashboard extends ConsumerWidget {
     final listings = ref.watch(myListingsProvider).value ?? const [];
     final orders = ref.watch(myStoreOrdersProvider).value ?? const <SellerOrder>[];
     final rate = ref.watch(myCommissionRateProvider).value;
-    final threads = ref.watch(sellerInboxProvider(store.id)).value ?? const [];
-    final unreadMessages = threads.where((t) => t.needsReply).length;
+    final unreadMessages = ref.watch(sellerConversationsProvider(store.id)).value?.fold<int>(0, (sum, c) => sum + c.unreadCount) ?? 0;
 
     final delivered = orders.where((o) => o.status == SellerOrderStatus.delivered);
     final gross = delivered.fold<double>(0, (sum, o) => sum + o.subtotal);
