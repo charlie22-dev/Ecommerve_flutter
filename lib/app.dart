@@ -52,11 +52,9 @@ class _BookVerseAppState extends ConsumerState<BookVerseApp> {
       WidgetsBinding.instance.addPostFrameCallback((_) => OAuthReturn.completeIfPending(ref.read(appRouterProvider)));
     } else {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
-        if (!mounted) return;
         final pushSvc = ref.read(pushNotificationServiceProvider);
-        await pushSvc.initialize(context);
-        if (!mounted) return;
-        await pushSvc.requestPermission(context);
+        await pushSvc.initialize();
+        await pushSvc.requestPermission();
       });
     }
   }
