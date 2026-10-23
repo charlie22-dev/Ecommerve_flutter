@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../theme/app_color_tokens.dart';
+import '../../features/messages/presentation/message_providers.dart';
 import '../../features/notifications/presentation/notification_providers.dart';
 
 /// Emil Kowalski's custom ease-out curve for snappy, intentional UI motion.
@@ -88,7 +89,9 @@ class _AppShellState extends ConsumerState<AppShell> {
 
   @override
   Widget build(BuildContext context) {
-    final unreadCount = ref.watch(unreadNotificationCountProvider);
+    final unreadNotificationCount = ref.watch(unreadNotificationCountProvider);
+    final unreadMessagesCount = ref.watch(unreadMessagesTotalCountProvider).value ?? 0;
+    final unreadCount = unreadNotificationCount + unreadMessagesCount;
 
     if (MediaQuery.sizeOf(context).width >= wideBreakpoint) {
       return Scaffold(
