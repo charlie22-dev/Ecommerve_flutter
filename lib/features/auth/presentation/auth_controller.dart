@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show AuthException, AuthRetryableFetchException;
 
+import '../../../core/services/push_notification_service.dart';
 import '../domain/auth_repository.dart';
 
 import 'auth_providers.dart';
@@ -63,7 +64,12 @@ class AuthController extends AsyncNotifier<void> {
     return !result.hasError;
   }
 
-  Future<void> signOut() => ref.read(authRepositoryProvider).signOut();
+  Future<void> signOut() async {
+    try {
+      await ref.read(pushNotificationServiceProvider).deleteTokenOnLogout();
+    } catch (_) {}
+    await ref.read(authRepositoryProvider).signOut();
+  }
 
   String _message(Object? error) {
     if (error is AuthRetryableFetchException || error is TimeoutException) {
