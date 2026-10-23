@@ -236,11 +236,13 @@ class AdminRepository {
   // ---------------------------------------------------------------- messages
 
   Stream<List<AdminThread>> watchThreads() {
-    return watchQuery(Tables.messages, () async {
-      final rows = await db.from(Tables.messages).select().order('created_at', ascending: false);
+    return watchQuery(Tables.conversations, () async {
+      final rows = <Map<String, dynamic>>[];
       final latestByUser = <String, StoreMessage>{};
       for (final m in rows.map(StoreMessage.fromRow)) {
-        latestByUser.putIfAbsent(m.uid, () => m); // rows are newest-first
+        if (m.storeId == null) {
+          latestByUser.putIfAbsent(m.uid, () => m);
+        }
       }
       final customers = await _customers(latestByUser.keys);
       final threads = [
