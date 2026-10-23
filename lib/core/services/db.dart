@@ -16,7 +16,10 @@ abstract final class Tables {
   static const orders = 'orders';
   static const reviews = 'reviews';
   static const notifications = 'notifications';
-  static const messages = 'messages';
+  static const storeMessages = 'messages';          // legacy buyer↔store chat (user_id, sender, text)
+  static const conversations = 'conversations';      // new buyer↔seller messaging
+  static const messages = 'messages';               // new messaging messages (same table name, migration will replace)
+  static const deviceTokens = 'device_tokens';
   static const stores = 'stores';
   static const sellerApplications = 'seller_applications';
   static const sellerOrders = 'seller_orders';
