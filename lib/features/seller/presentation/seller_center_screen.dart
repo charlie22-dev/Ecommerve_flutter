@@ -170,6 +170,27 @@ class _Dashboard extends ConsumerWidget {
             onTap: () => context.push(AppRoute.sellerMessages),
           ),
           DashboardNavRow(
+            icon: Icons.shield_rounded,
+            title: 'Contact BookVerse Admin',
+            subtitle: 'Direct support & inquiries for sellers',
+            onTap: () async {
+              final official = await ref.read(officialStoreProvider.future);
+              if (official == null) return;
+              try {
+                final convId = await ref.read(messageActionsProvider).getOrCreateConversation(official.id);
+                if (context.mounted) {
+                  context.push('/messages/conversation/$convId?storeName=BookVerse%20Admin');
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Could not open chat: $e')),
+                  );
+                }
+              }
+            },
+          ),
+          DashboardNavRow(
             icon: Icons.menu_book_outlined,
             title: 'Listings',
             subtitle: inReview == 0
