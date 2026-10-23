@@ -9,6 +9,7 @@ import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../domain/cart_line.dart';
 import 'cart_providers.dart';
+import '../../checkout/presentation/checkout_providers.dart';
 
 class CartScreen extends ConsumerWidget {
   const CartScreen({super.key});
@@ -185,12 +186,12 @@ class _QtyButton extends StatelessWidget {
   }
 }
 
-class _CheckoutBar extends StatelessWidget {
+class _CheckoutBar extends ConsumerWidget {
   const _CheckoutBar({required this.subtotal});
   final double subtotal;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return SafeArea(
       child: Container(
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
@@ -214,7 +215,13 @@ class _CheckoutBar extends StatelessWidget {
             ),
             SizedBox(
               width: 160,
-              child: PrimaryButton(label: 'Checkout', onPressed: () => context.push('/checkout')),
+              child: PrimaryButton(
+                label: 'Checkout',
+                onPressed: () {
+                  ref.read(buyNowItemProvider.notifier).state = null;
+                  context.push('/checkout');
+                },
+              ),
             ),
           ],
         ),
