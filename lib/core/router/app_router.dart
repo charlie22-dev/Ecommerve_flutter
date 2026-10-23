@@ -157,8 +157,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const AdminMessagesScreen(),
             routes: [
               GoRoute(
-                path: ':uid',
-                builder: (context, state) => AdminConversationScreen(customerUid: state.pathParameters['uid']!),
+                path: ':convId',
+                builder: (context, state) => AdminConversationScreen(
+                  conversationId: state.pathParameters['convId']!,
+                  buyerName: state.uri.queryParameters['buyerName'],
+                ),
               ),
             ],
           ),
@@ -182,10 +185,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const SellerMessagesScreen(),
         routes: [
           GoRoute(
-            path: ':uid',
+            path: ':convId',
             builder: (context, state) => SellerConversationScreen(
-              customerUid: state.pathParameters['uid']!,
+              conversationId: state.pathParameters['convId']!,
               storeId: state.uri.queryParameters['storeId'] ?? '',
+              buyerName: state.uri.queryParameters['buyerName'],
             ),
           ),
         ],
@@ -239,6 +243,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const MessagesScreen(),
         routes: [
           GoRoute(path: 'store', builder: (context, state) => const ConversationScreen()),
+          GoRoute(
+            path: 'conversation/:convId',
+            builder: (context, state) => ConversationScreen(
+              conversationId: state.pathParameters['convId'],
+              storeId: state.uri.queryParameters['storeId'],
+              storeName: state.uri.queryParameters['storeName'],
+            ),
+          ),
           GoRoute(
             path: 'seller/:storeId',
             builder: (context, state) => ConversationScreen(
