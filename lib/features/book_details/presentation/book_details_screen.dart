@@ -14,6 +14,7 @@ import '../../cart/presentation/cart_providers.dart';
 import '../../catalog/presentation/catalog_providers.dart';
 import '../../library/presentation/collection_providers.dart';
 import '../../library/presentation/widgets/create_collection_sheet.dart';
+import '../../messages/presentation/message_providers.dart';
 import '../../reviews/presentation/review_providers.dart';
 import '../../reviews/presentation/widgets/reviews_section.dart';
 import '../../wishlist/presentation/wishlist_providers.dart';
@@ -403,20 +404,62 @@ class _StoreName extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final storeNameAsync = ref.watch(storeNameProvider(storeId));
-    final name = storeNameAsync.value ?? 'BookVerse Official';
+    final colors = context.colors;
+    final storeAsync = ref.watch(storeByIdProvider(storeId));
+    final store = storeAsync.value;
+    final name = store?.name ?? 'BookVerse Official';
+    final currentUid = ref.watch(authUidProvider);
+    final isOwner = store != null && store.ownerId != null && store.ownerId == currentUid;
+    final canMessage = store != null && store.isActive && !isOwner;
+
     return Row(
       children: [
-        Icon(Icons.storefront_rounded, size: 16, color: context.colors.ink),
+        Icon(Icons.storefront_rounded, size: 16, color: colors.ink),
         const SizedBox(width: 5),
-        Text(
-          'Seller: $name',
-          style: TextStyle(
-            color: context.colors.ink,
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
+        Expanded(
+          child: Text(
+            'Seller: $name',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: colors.ink,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
+        if (isOwner)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: colors.ink.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              'Your store',
+              style: TextStyle(color: colors.ink, fontSize: 11, fontWeight: FontWeight.w600),
+            ),
+          )
+        else if (canMessage)
+          TextButton.icon(
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            onPressed: () {
+              if (!ensureLoggedIn(context, ref)) return;
+              final path = store.isOfficial
+                  ? '/messages/store'
+                  : '/messages/seller/${store.id}?name=${Uri.encodeComponent(store.name)}';
+              context.push(path);
+            },
+            icon: Icon(Icons.chat_bubble_outline_rounded, size: 14, color: colors.ink),
+            label: Text(
+              'Message',
+              style: TextStyle(color: colors.ink, fontSize: 12, fontWeight: FontWeight.w700),
+            ),
+          ),
       ],
     );
   }
