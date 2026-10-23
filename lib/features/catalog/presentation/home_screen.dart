@@ -34,6 +34,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     });
   }
 
+  Future<void> _refresh() async {
+    ref.invalidate(nowReadingProvider);
+    ref.invalidate(allBooksProvider);
+    ref.invalidate(sectionBooksProvider(FeaturedSection.forYou));
+    ref.invalidate(sectionBooksProvider(FeaturedSection.trending));
+    ref.invalidate(sectionBooksProvider(FeaturedSection.newReleases));
+    await Future.wait([
+      ref.read(nowReadingProvider.future).then((_) {}, onError: (_) {}),
+      ref.read(allBooksProvider.future).then((_) {}, onError: (_) {}),
+    ]);
+  }
+
   @override
   Widget build(BuildContext context) {
     final nowReadingAsync = ref.watch(nowReadingProvider);
@@ -42,7 +54,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return Scaffold(
       body: SafeArea(
         bottom: false,
-        child: CustomScrollView(
+        child: RefreshIndicator(
+          onRefresh: _refresh,
+          child: CustomScrollView(
           slivers: [
             SliverToBoxAdapter(
               child: Padding(
@@ -172,6 +186,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ),
           ],
+          ),
         ),
       ),
     );
