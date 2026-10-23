@@ -70,28 +70,77 @@ class MessageRepository {
     });
   }
 
-  /// Watches all conversations for admin
+  /// Watches conversations sent to BookVerse Official / Admin (by customers and sellers).
+  /// Excludes 3rd-party seller-to-buyer conversations.
   Stream<List<Conversation>> watchAdminConversations() {
     return watchQuery(Tables.conversations, () async {
       try {
+        final officialStore = await getOfficialStore();
+        if (officialStore == null) return const [];
+
         final rows = await db
             .from(Tables.conversations)
             .select('*, stores(id, name, is_official)')
+            .eq('store_id', officialStore.id)
             .order('last_message_at', ascending: false);
 
+        if (rows.isEmpty) return const [];
+
         final buyerIds = rows.map((r) => r['buyer_id'] as String).toSet().toList();
+        final convIds = rows.map((r) => r['id'] as String).toList();
+
         final profiles = await _fetchProfiles(buyerIds);
+        final sellerStores = await _fetchSellerStores(buyerIds);
+
+        // Fetch unread count where message is unread
+        final unreadMap = <String, int>{};
+        try {
+          final unreadRows = await db
+              .from(Tables.messages)
+              .select('conversation_id, sender_id')
+              .inFilter('conversation_id', convIds)
+              .eq('is_read', false);
+          for (final u in unreadRows) {
+            final cid = u['conversation_id'] as String;
+            unreadMap[cid] = (unreadMap[cid] ?? 0) + 1;
+          }
+        } catch (_) {}
 
         return rows.map((r) {
           final conv = Conversation.fromRow(r);
           final p = profiles[conv.buyerId];
+          final storeName = sellerStores[conv.buyerId];
+          final roleBadge = storeName != null ? 'Seller · $storeName' : 'Customer';
           return conv.copyWith(
-            buyerName: p?.name.isNotEmpty == true ? p!.name : 'Customer',
+            buyerName: p?.name.isNotEmpty == true ? p!.name : (storeName ?? 'User'),
             buyerPhoto: p?.photoUrl,
+            senderRoleBadge: roleBadge,
+            unreadCount: unreadMap[conv.id] ?? 0,
           );
         }).toList();
-      } catch (e) { debugPrint('Conversation fetch error: $e'); return const []; }
+      } catch (e) {
+        debugPrint('Conversation fetch error: $e');
+        return const [];
+      }
     });
+  }
+
+  Future<Map<String, String>> _fetchSellerStores(Iterable<String> uids) async {
+    final ids = uids.toSet().toList();
+    if (ids.isEmpty) return const {};
+    try {
+      final rows = await db
+          .from(Tables.stores)
+          .select('owner_id, name')
+          .inFilter('owner_id', ids);
+      return {
+        for (final r in rows)
+          if (r['owner_id'] != null && r['name'] != null)
+            r['owner_id'] as String: r['name'] as String,
+      };
+    } catch (_) {
+      return {};
+    }
   }
 
   /// Watches messages in a conversation (realtime, ordered by created_at asc)
