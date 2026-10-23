@@ -29,6 +29,16 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
     super.dispose();
   }
 
+  bool _isRefreshing = false;
+
+  Future<void> _refresh() async {
+    if (_isRefreshing) return;
+    setState(() => _isRefreshing = true);
+    ref.invalidate(discoverBooksProvider);
+    await ref.read(discoverBooksProvider.future).then((_) {}, onError: (_) {});
+    if (mounted) setState(() => _isRefreshing = false);
+  }
+
   void _pickSort() {
     final current = ref.read(catalogSortProvider);
     showModalBottomSheet(
@@ -160,49 +170,57 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
             ),
           ),
           Expanded(
-            child: booksAsync.when(
-              data: (books) {
-                if (books.isEmpty) {
-                  return const EmptyState(
-                    icon: Icons.search_off_rounded,
-                    title: 'No books found',
-                    message: 'Try a different search term or category.',
-                  );
-                }
-                // Website-style cover grid on wide screens; the list on phones.
-                if (MediaQuery.sizeOf(context).width >= 700) {
-                  return GridView.builder(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
-                    gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                      maxCrossAxisExtent: 180,
-                      childAspectRatio: 0.5,
-                      crossAxisSpacing: 16,
-                      mainAxisSpacing: 20,
-                    ),
-                    itemCount: books.length,
-                    itemBuilder: (context, i) => BookCard(
-                      book: books[i],
-                      width: double.infinity,
-                      onTap: () => context.push('/store/book/${books[i].id}'),
-                    ),
-                  );
-                }
-                return ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-                  itemCount: books.length,
-                  separatorBuilder: (_, _) => Divider(height: 1, color: context.colors.borderSubtle),
-                  itemBuilder: (context, i) {
-                    final book = books[i];
-                    return CatalogListTile(
-                      book: book,
-                      onTap: () => context.push('/store/book/${book.id}'),
+            child: RefreshIndicator(
+              onRefresh: _refresh,
+              child: booksAsync.when(
+                data: (books) {
+                  if (books.isEmpty) {
+                    return ListView(
+                      children: [
+                        SizedBox(height: MediaQuery.sizeOf(context).height * 0.2),
+                        const EmptyState(
+                          icon: Icons.search_off_rounded,
+                          title: 'No books found',
+                          message: 'Try a different search term or category.',
+                        ),
+                      ],
                     );
-                  },
-                );
-              },
-              loading: () => Center(child: CircularProgressIndicator(color: context.colors.ink)),
-              error: (err, _) => Center(
-                child: Text('Could not load books.', style: TextStyle(color: context.colors.error)),
+                  }
+                  // Website-style cover grid on wide screens; the list on phones.
+                  if (MediaQuery.sizeOf(context).width >= 700) {
+                    return GridView.builder(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+                      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                        maxCrossAxisExtent: 180,
+                        childAspectRatio: 0.5,
+                        crossAxisSpacing: 16,
+                        mainAxisSpacing: 20,
+                      ),
+                      itemCount: books.length,
+                      itemBuilder: (context, i) => BookCard(
+                        book: books[i],
+                        width: double.infinity,
+                        onTap: () => context.push('/store/book/${books[i].id}'),
+                      ),
+                    );
+                  }
+                  return ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+                    itemCount: books.length,
+                    separatorBuilder: (_, _) => Divider(height: 1, color: context.colors.borderSubtle),
+                    itemBuilder: (context, i) {
+                      final book = books[i];
+                      return CatalogListTile(
+                        book: book,
+                        onTap: () => context.push('/store/book/${book.id}'),
+                      );
+                    },
+                  );
+                },
+                loading: () => Center(child: CircularProgressIndicator(color: context.colors.ink)),
+                error: (err, _) => Center(
+                  child: Text('Could not load books.', style: TextStyle(color: context.colors.error)),
+                ),
               ),
             ),
           ),
