@@ -29,28 +29,15 @@ final _ordersTabProvider = StateProvider<OrderTab>((ref) => OrderTab.toShip);
 /// standard ecommerce "Me" screen pattern (Shopee/Lazada-style To Pay / To
 /// Ship / To Receive / To Rate). `initialTab` lets the Me screen deep-link
 /// straight into one segment.
-class OrdersScreen extends ConsumerWidget {
+class OrdersScreen extends ConsumerStatefulWidget {
   const OrdersScreen({super.key, this.initialTab});
   final OrderTab? initialTab;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final ordersAsync = ref.watch(userOrdersProvider);
-    return _OrdersBody(ordersAsync: ordersAsync, colors: context.colors, initialTab: initialTab);
-  }
+  ConsumerState<OrdersScreen> createState() => _OrdersScreenState();
 }
 
-class _OrdersBody extends ConsumerStatefulWidget {
-  const _OrdersBody({required this.ordersAsync, required this.colors, required this.initialTab});
-  final AsyncValue<List<Order>> ordersAsync;
-  final AppColorTokens colors;
-  final OrderTab? initialTab;
-
-  @override
-  ConsumerState<_OrdersBody> createState() => _OrdersBodyState();
-}
-
-class _OrdersBodyState extends ConsumerState<_OrdersBody> {
+class _OrdersScreenState extends ConsumerState<OrdersScreen> {
   @override
   void initState() {
     super.initState();
@@ -61,9 +48,25 @@ class _OrdersBodyState extends ConsumerState<_OrdersBody> {
     }
   }
 
+  Future<void> _refresh() async {
+    ref.invalidate(userOrdersProvider);
+    await ref.read(userOrdersProvider.future).then((_) {}, onError: (_) {});
+  }
+
+  List<Order> _filter(List<Order> orders, OrderTab tab) {
+    return switch (tab) {
+      OrderTab.toPay => orders.where((o) => o.status == OrderStatus.pending).toList(),
+      OrderTab.toShip => orders.where((o) => o.status == OrderStatus.toShip).toList(),
+      OrderTab.toReceive => orders.where((o) => o.status == OrderStatus.toReceive).toList(),
+      OrderTab.toRate => orders.where((o) => o.status == OrderStatus.completed && !o.rated).toList(),
+      OrderTab.all => orders,
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
-    final colors = widget.colors;
+    final colors = context.colors;
+    final ordersAsync = ref.watch(userOrdersProvider);
     final selectedTab = ref.watch(_ordersTabProvider);
 
     return Scaffold(
@@ -98,23 +101,34 @@ class _OrdersBodyState extends ConsumerState<_OrdersBody> {
             ),
           ),
           Expanded(
-            child: widget.ordersAsync.when(
+            child: ordersAsync.when(
               data: (orders) {
                 final filtered = _filter(orders, selectedTab);
                 if (filtered.isEmpty) {
-                  return EmptyState(
-                    icon: Icons.receipt_long_outlined,
-                    title: 'No orders here',
-                    message: selectedTab == OrderTab.toShip
-                        ? 'Orders you place at checkout will show up here.'
-                        : "You don't have any orders in this category yet.",
+                  return RefreshIndicator(
+                    onRefresh: _refresh,
+                    child: ListView(
+                      children: [
+                        SizedBox(height: MediaQuery.sizeOf(context).height * 0.25),
+                        EmptyState(
+                          icon: Icons.receipt_long_outlined,
+                          title: 'No orders here',
+                          message: selectedTab == OrderTab.toShip
+                              ? 'Orders you place at checkout will show up here.'
+                              : "You don't have any orders in this category yet.",
+                        ),
+                      ],
+                    ),
                   );
                 }
-                return ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-                  itemCount: filtered.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 12),
-                  itemBuilder: (context, i) => _OrderTile(order: filtered[i]),
+                return RefreshIndicator(
+                  onRefresh: _refresh,
+                  child: ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                    itemCount: filtered.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 12),
+                    itemBuilder: (context, i) => _OrderTile(order: filtered[i]),
+                  ),
                 );
               },
               loading: () => Center(child: CircularProgressIndicator(color: colors.ink)),
@@ -124,16 +138,6 @@ class _OrdersBodyState extends ConsumerState<_OrdersBody> {
         ],
       ),
     );
-  }
-
-  List<Order> _filter(List<Order> orders, OrderTab tab) {
-    return switch (tab) {
-      OrderTab.toPay => orders.where((o) => o.status == OrderStatus.pending).toList(),
-      OrderTab.toShip => orders.where((o) => o.status == OrderStatus.toShip).toList(),
-      OrderTab.toReceive => orders.where((o) => o.status == OrderStatus.toReceive).toList(),
-      OrderTab.toRate => orders.where((o) => o.status == OrderStatus.completed && !o.rated).toList(),
-      OrderTab.all => orders,
-    };
   }
 }
 
