@@ -11,6 +11,7 @@ import '../../../core/widgets/primary_button.dart';
 import '../../../core/widgets/rating_stars.dart';
 import '../../admin/presentation/admin_providers.dart';
 import '../../cart/presentation/cart_providers.dart';
+import '../../checkout/presentation/checkout_providers.dart';
 import '../../catalog/presentation/catalog_providers.dart';
 import '../../library/presentation/collection_providers.dart';
 import '../../library/presentation/widgets/create_collection_sheet.dart';
@@ -167,7 +168,8 @@ class _BookDetailsBodyState extends ConsumerState<_BookDetailsBody> {
                       onPressed: book.inStock
                           ? () async {
                               if (!ensureLoggedIn(context, ref)) return;
-                              await ref.read(cartActionsProvider).add(book.id);
+                              // Direct purchase: buy only this book without adding to or clearing cart
+                              ref.read(buyNowItemProvider.notifier).state = BuyNowItem(book: book);
                               if (context.mounted) context.push('/checkout');
                             }
                           : null,
