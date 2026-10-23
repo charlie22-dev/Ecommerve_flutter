@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'core/router/app_router.dart';
+import 'core/services/push_notification_service.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_mode_provider.dart';
 import 'features/auth/presentation/oauth_return.dart';
@@ -49,6 +50,14 @@ class _BookVerseAppState extends ConsumerState<BookVerseApp> {
     // Back from Google/Facebook on web? Show the login popup now.
     if (kIsWeb) {
       WidgetsBinding.instance.addPostFrameCallback((_) => OAuthReturn.completeIfPending(ref.read(appRouterProvider)));
+    } else {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+        final pushSvc = ref.read(pushNotificationServiceProvider);
+        await pushSvc.initialize(context);
+        if (!mounted) return;
+        await pushSvc.requestPermission(context);
+      });
     }
   }
 
