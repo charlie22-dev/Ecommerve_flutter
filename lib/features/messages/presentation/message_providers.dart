@@ -1,97 +1,88 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/models/chat_message.dart';
+import '../../../core/models/conversation.dart';
 import '../../../core/models/store.dart';
-import '../../../core/models/store_message.dart';
 import '../../auth/presentation/auth_providers.dart';
 import '../data/message_repository.dart';
 
 final messageRepositoryProvider = Provider((ref) => MessageRepository());
 
-/// Convenience: the signed-in user's UID, or null when logged out.
+/// The signed-in user's UID, or null when logged out.
 final authUidProvider = Provider<String?>((ref) => ref.watch(authStateProvider).value?.uid);
 
-// ─── Official store thread (BookVerse Support) ────────────────────────────────
-
-final storeThreadProvider = StreamProvider<List<StoreMessage>>((ref) {
-  final uid = ref.watch(authStateProvider).value?.uid;
-  if (uid == null) return Stream.value(const []);
-  return ref.watch(messageRepositoryProvider).watchThread(uid);
+/// The official BookVerse store
+final officialStoreProvider = FutureProvider<Store?>((ref) {
+  return ref.watch(messageRepositoryProvider).getOfficialStore();
 });
 
-/// True while the user has text in the compose box and hasn't sent yet.
+/// True while user is typing in chat composer
 final isUserTypingProvider = StateProvider<bool>((ref) => false);
 
-/// True while the store/admin has text and hasn't sent (simulated for UX).
-final isStoreTypingProvider = StateProvider<bool>((ref) => false);
+/// Buyer inbox: all conversations for the logged-in buyer
+final buyerConversationsProvider = StreamProvider<List<Conversation>>((ref) {
+  final uid = ref.watch(authStateProvider).value?.uid;
+  if (uid == null) return Stream.value(const []);
+  return ref.watch(messageRepositoryProvider).watchBuyerConversations(uid);
+});
+
+/// Seller inbox: all conversations for the seller's store
+final sellerConversationsProvider =
+    StreamProvider.family<List<Conversation>, String>((ref, storeId) {
+  return ref.watch(messageRepositoryProvider).watchSellerConversations(storeId);
+});
+
+/// Admin inbox: all conversations
+final adminConversationsProvider = StreamProvider<List<Conversation>>((ref) {
+  return ref.watch(messageRepositoryProvider).watchAdminConversations();
+});
+
+/// Messages in a specific conversation (realtime)
+final conversationMessagesProvider =
+    StreamProvider.family<List<ChatMessage>, String>((ref, conversationId) {
+  return ref.watch(messageRepositoryProvider).watchMessages(conversationId);
+});
+
+/// Total unread messages count for the bottom navigation icon badge
+final unreadMessagesTotalCountProvider = StreamProvider<int>((ref) {
+  final uid = ref.watch(authStateProvider).value?.uid;
+  if (uid == null) return Stream.value(0);
+  return ref.watch(messageRepositoryProvider).watchTotalUnreadCount(uid);
+});
+
+/// All approved stores a buyer can message
+final approvedStoresListProvider = StreamProvider<List<Store>>((ref) {
+  return ref.watch(messageRepositoryProvider).watchApprovedStores();
+});
 
 class MessageActions {
   MessageActions(this.ref);
   final Ref ref;
 
-  Future<void> send(String text) async {
+  Future<void> send({
+    required String conversationId,
+    required String text,
+    ChatMessageType type = ChatMessageType.text,
+    String? orderId,
+  }) async {
     final uid = ref.read(authStateProvider).value?.uid;
     if (uid == null || text.trim().isEmpty) return;
-    await ref.read(messageRepositoryProvider).send(uid, text.trim());
+    await ref.read(messageRepositoryProvider).sendMessage(
+          conversationId: conversationId,
+          senderId: uid,
+          text: text,
+          type: type,
+          orderId: orderId,
+        );
   }
 
-  Future<void> sendStoreWelcomeIfEmpty(List<StoreMessage> currentThread) async {
-    final uid = ref.read(authStateProvider).value?.uid;
-    if (uid == null || currentThread.isNotEmpty) return;
-    await ref.read(messageRepositoryProvider).sendStoreWelcome(uid);
+  Future<void> markRead(String conversationId) async {
+    await ref.read(messageRepositoryProvider).markConversationRead(conversationId);
+  }
+
+  Future<String> getOrCreateConversation(String storeId) async {
+    return ref.read(messageRepositoryProvider).getOrCreateConversation(storeId);
   }
 }
 
 final messageActionsProvider = Provider((ref) => MessageActions(ref));
-
-// ─── Seller store list ────────────────────────────────────────────────────────
-
-/// All approved (non-official, active) stores a buyer can chat with.
-final approvedStoresProvider = StreamProvider<List<Store>>((ref) {
-  return ref.watch(messageRepositoryProvider).watchApprovedStores();
-});
-
-// ─── Buyer ↔ Seller thread ────────────────────────────────────────────────────
-
-/// Messages in a buyer's thread with a specific seller store.
-final sellerThreadProvider =
-    StreamProvider.family<List<StoreMessage>, String>((ref, storeId) {
-  final uid = ref.watch(authStateProvider).value?.uid;
-  if (uid == null) return Stream.value(const []);
-  return ref.watch(messageRepositoryProvider).watchThread(uid, storeId: storeId);
-});
-
-class SellerMessageActions {
-  SellerMessageActions(this.ref);
-  final Ref ref;
-
-  /// Buyer sends a message to a seller store.
-  Future<void> send(String text, String storeId) async {
-    final uid = ref.read(authStateProvider).value?.uid;
-    if (uid == null || text.trim().isEmpty) return;
-    await ref.read(messageRepositoryProvider).send(uid, text.trim(), storeId: storeId);
-    // Notify the seller — fails silently if the RPC doesn't exist yet.
-    try {
-      await ref
-          .read(messageRepositoryProvider)
-          .notifySellerOnMessage(storeId, 'New message', text.trim());
-    } catch (_) {}
-  }
-}
-
-final sellerMessageActionsProvider = Provider((ref) => SellerMessageActions(ref));
-
-// ─── Seller inbox ─────────────────────────────────────────────────────────────
-
-/// All customer threads for a seller's store (seller-side inbox).
-final sellerInboxProvider =
-    StreamProvider.family<List<SellerCustomerThread>, String>((ref, storeId) {
-  return ref.watch(messageRepositoryProvider).watchSellerThreads(storeId);
-});
-
-/// A specific customer's thread viewed by the seller.
-final sellerCustomerThreadProvider =
-    StreamProvider.family<List<StoreMessage>, (String storeId, String customerUid)>(
-        (ref, args) {
-  final (storeId, customerUid) = args;
-  return ref.watch(messageRepositoryProvider).watchThread(customerUid, storeId: storeId);
-});
