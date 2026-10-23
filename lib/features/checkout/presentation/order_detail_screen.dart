@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/models/order.dart';
@@ -9,6 +10,7 @@ import '../../../core/theme/app_color_tokens.dart';
 import '../../../core/widgets/book_cover_image.dart';
 import '../../admin/presentation/admin_providers.dart';
 import '../../auth/presentation/auth_providers.dart';
+import '../../catalog/presentation/catalog_providers.dart';
 import '../../seller/presentation/seller_providers.dart';
 import 'checkout_providers.dart';
 import 'orders_screen.dart';
@@ -178,7 +180,6 @@ class _Shipments extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final colors = context.colors;
     final shipments = ref.watch(orderShipmentsProvider(orderId)).value ?? const <SellerOrder>[];
     if (shipments.isEmpty) return const SizedBox.shrink();
     return Padding(
@@ -187,31 +188,77 @@ class _Shipments extends ConsumerWidget {
         title: shipments.length == 1 ? 'Shipment' : 'Shipments (${shipments.length} stores)',
         child: Column(
           children: [
-            for (final s in shipments)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                child: Row(
-                  children: [
-                    Icon(Icons.storefront_outlined, size: 18, color: colors.textTertiary),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(s.storeName ?? 'Store',
-                              style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w700, fontSize: 13)),
-                          if (s.trackingNumber != null)
-                            Text('${s.trackingCarrier} · ${s.trackingNumber}',
-                                style: TextStyle(color: colors.textSecondary, fontSize: 12)),
-                        ],
-                      ),
-                    ),
-                    Text(s.status.label, style: TextStyle(color: colors.textSecondary, fontSize: 12, fontWeight: FontWeight.w700)),
-                  ],
-                ),
-              ),
+            for (final s in shipments) _ShipmentRow(shipment: s),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _ShipmentRow extends ConsumerWidget {
+  const _ShipmentRow({required this.shipment});
+  final SellerOrder shipment;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colors = context.colors;
+    final storeAsync = ref.watch(storeByIdProvider(shipment.storeId));
+    final store = storeAsync.value;
+    final currentUid = ref.watch(authStateProvider).value?.uid;
+    final isOwner = store != null && store.ownerId != null && store.ownerId == currentUid;
+    final canMessage = store != null && store.isActive && !isOwner;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Icon(Icons.storefront_outlined, size: 18, color: colors.textTertiary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  shipment.storeName ?? store?.name ?? 'Store',
+                  style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w700, fontSize: 13),
+                ),
+                if (shipment.trackingNumber != null)
+                  Text(
+                    '${shipment.trackingCarrier} · ${shipment.trackingNumber}',
+                    style: TextStyle(color: colors.textSecondary, fontSize: 12),
+                  ),
+              ],
+            ),
+          ),
+          if (canMessage)
+            TextButton.icon(
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              onPressed: () {
+                final path = store.isOfficial
+                    ? '/messages/store'
+                    : '/messages/seller/${shipment.storeId}?name=${Uri.encodeComponent(shipment.storeName ?? store.name)}';
+                context.push(path);
+              },
+              icon: Icon(Icons.chat_bubble_outline_rounded, size: 14, color: colors.ink),
+              label: Text('Message', style: TextStyle(color: colors.ink, fontSize: 12, fontWeight: FontWeight.w700)),
+            )
+          else if (isOwner)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: colors.ink.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text('Your store', style: TextStyle(color: colors.ink, fontSize: 11, fontWeight: FontWeight.w600)),
+            ),
+          const SizedBox(width: 8),
+          Text(shipment.status.label, style: TextStyle(color: colors.textSecondary, fontSize: 12, fontWeight: FontWeight.w700)),
+        ],
       ),
     );
   }
