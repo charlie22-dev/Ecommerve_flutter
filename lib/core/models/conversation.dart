@@ -13,6 +13,7 @@ class Conversation {
     this.buyerName,
     this.buyerPhoto,
     this.unreadCount = 0,
+    this.senderRoleBadge,
   });
 
   final String id;
@@ -28,6 +29,7 @@ class Conversation {
   final String? buyerName;
   final String? buyerPhoto;
   final int unreadCount;
+  final String? senderRoleBadge;
 
   factory Conversation.fromRow(Map<String, dynamic> row) {
     final stores = row['stores'] as Map<String, dynamic>?;
@@ -45,6 +47,7 @@ class Conversation {
       buyerName: buyer?['display_name'] as String?,
       buyerPhoto: buyer?['photo_url'] as String?,
       unreadCount: (row['unread_count'] as num?)?.toInt() ?? 0,
+      senderRoleBadge: row['sender_role_badge'] as String?,
     );
   }
 
@@ -54,6 +57,7 @@ class Conversation {
     String? buyerName,
     String? buyerPhoto,
     int? unreadCount,
+    String? senderRoleBadge,
   }) {
     return Conversation(
       id: id,
@@ -67,6 +71,7 @@ class Conversation {
       buyerName: buyerName ?? this.buyerName,
       buyerPhoto: buyerPhoto ?? this.buyerPhoto,
       unreadCount: unreadCount ?? this.unreadCount,
+      senderRoleBadge: senderRoleBadge ?? this.senderRoleBadge,
     );
   }
 }
