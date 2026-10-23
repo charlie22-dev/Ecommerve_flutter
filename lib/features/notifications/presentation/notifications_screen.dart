@@ -11,15 +11,24 @@ import 'notification_providers.dart';
 
 final _notificationsTabProvider = StateProvider<NotificationCategory>((ref) => NotificationCategory.orderUpdate);
 
-class NotificationsScreen extends ConsumerWidget {
+class NotificationsScreen extends ConsumerStatefulWidget {
   const NotificationsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<NotificationsScreen> createState() => _NotificationsScreenState();
+}
+
+class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
+  Future<void> _refresh() async {
+    ref.invalidate(userNotificationsProvider);
+    await ref.read(userNotificationsProvider.future).then((_) {}, onError: (_) {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final colors = context.colors;
     final notificationsAsync = ref.watch(userNotificationsProvider);
     final selectedTab = ref.watch(_notificationsTabProvider);
-
     final unreadMessages = ref.watch(unreadMessagesTotalCountProvider).value ?? 0;
 
     return Scaffold(
@@ -57,17 +66,28 @@ class NotificationsScreen extends ConsumerWidget {
               data: (items) {
                 final filtered = items.where((n) => n.category == selectedTab).toList();
                 if (filtered.isEmpty) {
-                  return const EmptyState(
-                    icon: Icons.notifications_none_rounded,
-                    title: 'Nothing here yet',
-                    message: 'You\'ll see updates here as they happen.',
+                  return RefreshIndicator(
+                    onRefresh: _refresh,
+                    child: ListView(
+                      children: [
+                        SizedBox(height: MediaQuery.sizeOf(context).height * 0.25),
+                        const EmptyState(
+                          icon: Icons.notifications_none_rounded,
+                          title: 'Nothing here yet',
+                          message: 'You\'ll see updates here as they happen.',
+                        ),
+                      ],
+                    ),
                   );
                 }
-                return ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
-                  itemCount: filtered.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 10),
-                  itemBuilder: (context, i) => _NotificationTile(notification: filtered[i]),
+                return RefreshIndicator(
+                  onRefresh: _refresh,
+                  child: ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+                    itemCount: filtered.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 10),
+                    itemBuilder: (context, i) => _NotificationTile(notification: filtered[i]),
+                  ),
                 );
               },
               loading: () => Center(child: CircularProgressIndicator(color: colors.ink)),
