@@ -161,6 +161,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 builder: (context, state) => AdminConversationScreen(
                   conversationId: state.pathParameters['convId']!,
                   buyerName: state.uri.queryParameters['buyerName'],
+                  roleBadge: state.uri.queryParameters['roleBadge'],
                 ),
               ),
             ],
