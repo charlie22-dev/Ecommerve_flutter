@@ -1,121 +1,181 @@
+import 'package:flutter/foundation.dart';
+import '../../../core/models/chat_message.dart';
+import '../../../core/models/conversation.dart';
 import '../../../core/models/store.dart';
-import '../../../core/models/store_message.dart';
 import '../../../core/services/db.dart';
 import '../../admin/data/admin_repository.dart' show CustomerInfo;
 
-/// Handles database operations for customer support messages and store conversations.
+import '../../../core/models/store_message.dart';
+
 class MessageRepository {
-  /// Watches messages for a specific buyer thread.
-  /// If [storeId] is null, watches the thread with BookVerse Official support.
-  /// If [storeId] is set, watches the thread between this buyer and that seller.
-  Stream<List<StoreMessage>> watchThread(String uid, {String? storeId}) {
-    return watchQuery(Tables.messages, () async {
-      final rows = await db
-          .from(Tables.messages)
+  /// Backwards-compat stub
+  Stream<List<StoreMessage>> watchThread(String uid) => Stream.value(const []);
+  /// Fetches the official BookVerse store
+  Future<Store?> getOfficialStore() async {
+    try {
+      final row = await db
+          .from(Tables.stores)
           .select()
-          .eq('user_id', uid)
-          .order('created_at', ascending: true);
-      return rows
-          .map(StoreMessage.fromRow)
-          .where((m) => m.storeId == storeId)
-          .toList();
+          .eq('is_official', true)
+          .maybeSingle();
+      return row == null ? null : Store.fromRow(row);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Finds or creates a conversation between the current buyer and a store.
+  Future<String> getOrCreateConversation(String storeId) async {
+    final res = await db.rpc('get_or_create_conversation', params: {'p_store_id': storeId});
+    return res as String;
+  }
+
+  /// Watches all conversations for a buyer (sorted by last_message_at desc)
+  Stream<List<Conversation>> watchBuyerConversations(String buyerId) {
+    return watchQuery(Tables.conversations, () async {
+      try {
+        final rows = await db
+            .from(Tables.conversations)
+            .select('*, stores(id, name, is_official)')
+            .eq('buyer_id', buyerId)
+            .order('last_message_at', ascending: false);
+
+        return rows.map((r) => Conversation.fromRow(r)).toList();
+      } catch (e) { debugPrint('Conversation fetch error: $e'); return const []; }
     });
   }
 
-  /// Sends a customer message to the store support or seller conversation thread.
-  Future<void> send(String uid, String text, {String? storeId}) async {
-    await db.from(Tables.messages).insert(
-          StoreMessage(
-            id: '',
-            uid: uid,
-            sender: MessageSender.user,
-            text: text,
-            storeId: storeId,
-          ).toRow(),
-        );
+  /// Watches all conversations for a seller store (sorted by last_message_at desc)
+  Stream<List<Conversation>> watchSellerConversations(String storeId) {
+    return watchQuery(Tables.conversations, () async {
+      try {
+        final rows = await db
+            .from(Tables.conversations)
+            .select('*, stores(id, name, is_official)')
+            .eq('store_id', storeId)
+            .order('last_message_at', ascending: false);
+
+        final buyerIds = rows.map((r) => r['buyer_id'] as String).toSet().toList();
+        final profiles = await _fetchProfiles(buyerIds);
+
+        return rows.map((r) {
+          final conv = Conversation.fromRow(r);
+          final p = profiles[conv.buyerId];
+          return conv.copyWith(
+            buyerName: p?.name.isNotEmpty == true ? p!.name : 'Customer',
+            buyerPhoto: p?.photoUrl,
+          );
+        }).toList();
+      } catch (e) { debugPrint('Conversation fetch error: $e'); return const []; }
+    });
   }
 
-  /// Sends a reply from an approved seller's store to a customer.
-  Future<void> sendSellerReply(String customerUid, String storeId, String text) async {
-    await db.from(Tables.messages).insert(
-          StoreMessage(
-            id: '',
-            uid: customerUid,
-            sender: MessageSender.store,
-            text: text,
-            storeId: storeId,
-          ).toRow(),
-        );
+  /// Watches all conversations for admin
+  Stream<List<Conversation>> watchAdminConversations() {
+    return watchQuery(Tables.conversations, () async {
+      try {
+        final rows = await db
+            .from(Tables.conversations)
+            .select('*, stores(id, name, is_official)')
+            .order('last_message_at', ascending: false);
+
+        final buyerIds = rows.map((r) => r['buyer_id'] as String).toSet().toList();
+        final profiles = await _fetchProfiles(buyerIds);
+
+        return rows.map((r) {
+          final conv = Conversation.fromRow(r);
+          final p = profiles[conv.buyerId];
+          return conv.copyWith(
+            buyerName: p?.name.isNotEmpty == true ? p!.name : 'Customer',
+            buyerPhoto: p?.photoUrl,
+          );
+        }).toList();
+      } catch (e) { debugPrint('Conversation fetch error: $e'); return const []; }
+    });
   }
 
-  /// A one-time canned welcome — not a live reply — posted by the
-  /// `send_store_welcome` function (customers can't post as the store) the
-  /// first time a user opens an empty thread.
-  Future<void> sendStoreWelcome(String uid) async {
+  /// Watches messages in a conversation (realtime, ordered by created_at asc)
+  Stream<List<ChatMessage>> watchMessages(String conversationId) {
+    return watchQuery(Tables.messages, () async {
+      try {
+        final rows = await db
+            .from(Tables.messages)
+            .select()
+            .eq('conversation_id', conversationId)
+            .order('created_at', ascending: true);
+        return rows.map(ChatMessage.fromRow).toList();
+      } catch (e) { debugPrint('Conversation fetch error: $e'); return const []; }
+    });
+  }
+
+  /// Sends a message in a conversation
+  Future<void> sendMessage({
+    required String conversationId,
+    required String senderId,
+    required String text,
+    ChatMessageType type = ChatMessageType.text,
+    String? orderId,
+  }) async {
+    await db.from(Tables.messages).insert({
+      'conversation_id': conversationId,
+      'sender_id': senderId,
+      'body': text.trim(),
+      'type': type.toDbString(),
+      'order_id': orderId,
+      'is_read': false,
+    });
+  }
+
+  /// Marks unread messages in a conversation as read
+  Future<void> markConversationRead(String conversationId) async {
     try {
-      await db.rpc('send_store_welcome');
+      await db.rpc('mark_conversation_read', params: {'p_conversation_id': conversationId});
     } catch (_) {}
   }
 
-  /// All approved seller stores that customers can message.
+  /// All approved seller stores that buyers can message
   Stream<List<Store>> watchApprovedStores() {
     return watchQuery(Tables.stores, () async {
-      final rows = await db
-          .from(Tables.stores)
-          .select()
-          .eq('is_official', false)
-          .eq('status', 'active')
-          .order('name', ascending: true);
-      return rows.map(Store.fromRow).toList();
-    });
-  }
-
-  /// Notifies the seller of a new buyer message via an RPC function.
-  /// Fails silently if the `notify_seller_on_message` function doesn't exist yet.
-  Future<void> notifySellerOnMessage(String storeId, String title, String body) async {
-    await db.rpc('notify_seller_on_message', params: {
-      'p_store_id': storeId,
-      'p_title': title,
-      'p_body': body,
-    });
-  }
-
-  /// Customer threads received by an approved seller's store.
-  Stream<List<SellerCustomerThread>> watchSellerThreads(String storeId) {
-    return watchQuery(Tables.messages, () async {
-      final rows = await db
-          .from(Tables.messages)
-          .select()
-          .order('created_at', ascending: false);
-      final messages = rows
-          .map(StoreMessage.fromRow)
-          .where((m) => m.storeId == storeId)
-          .toList();
-
-      final latestByUser = <String, StoreMessage>{};
-      for (final m in messages) {
-        latestByUser.putIfAbsent(m.uid, () => m);
+      try {
+        final rows = await db
+            .from(Tables.stores)
+            .select()
+            .eq('status', 'active')
+            .eq('is_official', false)
+            .order('name', ascending: true);
+        return rows.map(Store.fromRow).toList();
+      } catch (_) {
+        return const [];
       }
-
-      final customers = await _fetchCustomers(latestByUser.keys);
-      final threads = [
-        for (final e in latestByUser.entries)
-          SellerCustomerThread(
-            customer: customers[e.key] ?? CustomerInfo(uid: e.key, name: '', email: ''),
-            lastMessage: e.value,
-            awaitingReply: e.value.sender == MessageSender.user,
-          ),
-      ];
-
-      threads.sort((a, b) {
-        if (a.needsReply != b.needsReply) return a.needsReply ? -1 : 1;
-        return (b.lastMessage.createdAt ?? DateTime(0)).compareTo(a.lastMessage.createdAt ?? DateTime(0));
-      });
-      return threads;
     });
   }
 
-  Future<Map<String, CustomerInfo>> _fetchCustomers(Iterable<String> uids) async {
+  /// Total unread count for bottom navigation badge
+  Stream<int> watchTotalUnreadCount(String uid) {
+    return watchQuery(Tables.messages, () async {
+      try {
+        // Count unread messages in conversations where this user is buyer
+        final convRows = await db
+            .from(Tables.conversations)
+            .select('id')
+            .eq('buyer_id', uid);
+        final convIds = convRows.map((r) => r['id'] as String).toList();
+        if (convIds.isEmpty) return 0;
+
+        final unread = await db
+            .from(Tables.messages)
+            .select('id')
+            .inFilter('conversation_id', convIds)
+            .eq('is_read', false)
+            .neq('sender_id', uid);
+        return unread.length;
+      } catch (_) {
+        return 0;
+      }
+    });
+  }
+
+  Future<Map<String, CustomerInfo>> _fetchProfiles(Iterable<String> uids) async {
     final ids = uids.toSet().toList();
     if (ids.isEmpty) return const {};
     try {
@@ -133,24 +193,7 @@ class MessageRepository {
           ),
       };
     } catch (_) {
-      return {
-        for (final id in ids)
-          id: CustomerInfo(uid: id, name: 'Customer (${id.length >= 6 ? id.substring(0, 6) : id})', email: ''),
-      };
+      return {};
     }
   }
-}
-
-class SellerCustomerThread {
-  const SellerCustomerThread({
-    required this.customer,
-    required this.lastMessage,
-    required this.awaitingReply,
-  });
-
-  final CustomerInfo customer;
-  final StoreMessage lastMessage;
-  final bool awaitingReply;
-
-  bool get needsReply => awaitingReply;
 }
