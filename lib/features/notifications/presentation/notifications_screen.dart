@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../../core/models/app_notification.dart';
 import '../../../core/theme/app_color_tokens.dart';
 import '../../../core/widgets/empty_state.dart';
+import '../../messages/presentation/message_providers.dart';
 import 'notification_providers.dart';
 
 final _notificationsTabProvider = StateProvider<NotificationCategory>((ref) => NotificationCategory.orderUpdate);
@@ -19,6 +20,8 @@ class NotificationsScreen extends ConsumerWidget {
     final notificationsAsync = ref.watch(userNotificationsProvider);
     final selectedTab = ref.watch(_notificationsTabProvider);
 
+    final unreadMessages = ref.watch(unreadMessagesTotalCountProvider).value ?? 0;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Notifications'),
@@ -27,7 +30,11 @@ class NotificationsScreen extends ConsumerWidget {
             button: true,
             label: 'Messages',
             child: IconButton(
-              icon: const Icon(Icons.chat_bubble_outline_rounded),
+              icon: Badge(
+                isLabelVisible: unreadMessages > 0,
+                label: Text('$unreadMessages'),
+                child: const Icon(Icons.chat_bubble_outline_rounded),
+              ),
               onPressed: () => context.push('/messages'),
             ),
           ),
