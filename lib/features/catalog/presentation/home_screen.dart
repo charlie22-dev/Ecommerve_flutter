@@ -11,6 +11,7 @@ import '../../../core/widgets/section_header.dart';
 import '../../library/presentation/library_providers.dart';
 import '../../vouchers/presentation/widgets/voucher_popup.dart';
 import 'catalog_providers.dart';
+import 'recommendation_providers.dart';
 import 'widgets/book_rail.dart';
 import 'widgets/now_reading_hero_card.dart';
 
@@ -37,6 +38,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Future<void> _refresh() async {
     ref.invalidate(nowReadingProvider);
     ref.invalidate(allBooksProvider);
+    ref.invalidate(userPreferenceProfileProvider);
+    ref.invalidate(personalizedForYouProvider);
     ref.invalidate(sectionBooksProvider(FeaturedSection.forYou));
     ref.invalidate(sectionBooksProvider(FeaturedSection.trending));
     ref.invalidate(sectionBooksProvider(FeaturedSection.newReleases));
@@ -50,6 +53,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget build(BuildContext context) {
     final nowReadingAsync = ref.watch(nowReadingProvider);
     final allBooksAsync = ref.watch(allBooksProvider);
+    final recommendationReason = ref.watch(recommendationReasonProvider);
 
     return Scaffold(
       body: SafeArea(
@@ -57,135 +61,136 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         child: RefreshIndicator(
           onRefresh: _refresh,
           child: CustomScrollView(
-          slivers: [
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Semantics(
-                        button: true,
-                        label: 'Search books, authors, genres',
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(14),
-                          onTap: () => context.push(AppRoute.explore),
-                          child: Container(
-                            height: 46,
-                            padding: const EdgeInsets.symmetric(horizontal: 14),
-                            decoration: BoxDecoration(
-                              color: context.colors.surface,
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(color: context.colors.border),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(Icons.search_rounded, color: context.colors.textTertiary, size: 20),
-                                const SizedBox(width: 10),
-                                Text(
-                                  'Search books, authors, genres…',
-                                  style: TextStyle(color: context.colors.textTertiary, fontSize: 13.5),
-                                ),
-                              ],
+            slivers: [
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Semantics(
+                          button: true,
+                          label: 'Search books, authors, genres',
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(14),
+                            onTap: () => context.push(AppRoute.explore),
+                            child: Container(
+                              height: 46,
+                              padding: const EdgeInsets.symmetric(horizontal: 14),
+                              decoration: BoxDecoration(
+                                color: context.colors.surface,
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: context.colors.border),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.search_rounded, color: context.colors.textTertiary, size: 20),
+                                  const SizedBox(width: 10),
+                                  Text(
+                                    'Search books, authors, genres…',
+                                    style: TextStyle(color: context.colors.textTertiary, fontSize: 13.5),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 10),
-                    const CartIconButton(),
-                  ],
+                      const SizedBox(width: 10),
+                      const CartIconButton(),
+                    ],
+                  ),
                 ),
               ),
-            ),
-            SliverToBoxAdapter(
-              child: nowReadingAsync.when(
-                data: (nowReading) {
-                  if (nowReading == null) return const SizedBox.shrink();
-                  return NowReadingHeroCard(nowReading: nowReading);
-                },
-                loading: () => SizedBox(
-                  height: 160,
-                  child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: context.colors.ink)),
-                ),
-                error: (err, _) => const SizedBox.shrink(),
-              ),
-            ),
-            BookRail(
-              title: 'For You',
-              sectionProvider: sectionBooksProvider(FeaturedSection.forYou),
-              emptyMessage: 'Recommendations will appear as you read more.',
-              useFeatureCard: true,
-            ),
-            BookRail(
-              title: 'Trending',
-              sectionProvider: sectionBooksProvider(FeaturedSection.trending),
-              badgeLabel: 'HOT',
-              emptyMessage: 'No trending titles yet.',
-            ),
-            BookRail(
-              title: 'New Releases',
-              sectionProvider: sectionBooksProvider(FeaturedSection.newReleases),
-              badgeLabel: 'NEW',
-              emptyMessage: 'No new releases yet.',
-            ),
-            SliverToBoxAdapter(
-              child: SectionHeader(
-                title: 'All Books',
-                onAction: () => context.go(AppRoute.store),
-              ),
-            ),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
-              sliver: allBooksAsync.when(
-                data: (books) {
-                  if (books.isEmpty) {
-                    return SliverToBoxAdapter(
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(vertical: 20),
-                        child: Text(
-                          'No books in the catalog yet.',
-                          style: TextStyle(color: context.colors.textTertiary, fontSize: 13),
-                        ),
-                      ),
-                    );
-                  }
-                  return SliverGrid(
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      mainAxisSpacing: 18,
-                      crossAxisSpacing: 14,
-                      childAspectRatio: 0.44,
-                    ),
-                    delegate: SliverChildBuilderDelegate(
-                      (context, i) {
-                        final Book book = books[i];
-                        return BookCard(
-                          book: book,
-                          width: double.infinity,
-                          showAddToCartButton: true,
-                          onTap: () => context.push('/home/book/${book.id}'),
-                        );
-                      },
-                      childCount: books.length,
-                    ),
-                  );
-                },
-                loading: () => SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(vertical: 20),
+              SliverToBoxAdapter(
+                child: nowReadingAsync.when(
+                  data: (nowReading) {
+                    if (nowReading == null) return const SizedBox.shrink();
+                    return NowReadingHeroCard(nowReading: nowReading);
+                  },
+                  loading: () => SizedBox(
+                    height: 160,
                     child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: context.colors.ink)),
                   ),
+                  error: (err, _) => const SizedBox.shrink(),
                 ),
-                error: (err, _) => SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(vertical: 20),
-                    child: Text('Could not load the catalog.', style: TextStyle(color: context.colors.error)),
+              ),
+              BookRail(
+                title: 'For You',
+                subtitle: recommendationReason,
+                sectionProvider: personalizedForYouProvider,
+                emptyMessage: 'Recommendations will appear as you read and order books.',
+                useFeatureCard: true,
+              ),
+              BookRail(
+                title: 'Trending',
+                sectionProvider: sectionBooksProvider(FeaturedSection.trending),
+                badgeLabel: 'HOT',
+                emptyMessage: 'No trending titles yet.',
+              ),
+              BookRail(
+                title: 'New Releases',
+                sectionProvider: sectionBooksProvider(FeaturedSection.newReleases),
+                badgeLabel: 'NEW',
+                emptyMessage: 'No new releases yet.',
+              ),
+              SliverToBoxAdapter(
+                child: SectionHeader(
+                  title: 'All Books',
+                  onAction: () => context.go(AppRoute.store),
+                ),
+              ),
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
+                sliver: allBooksAsync.when(
+                  data: (books) {
+                    if (books.isEmpty) {
+                      return SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 20),
+                          child: Text(
+                            'No books in the catalog yet.',
+                            style: TextStyle(color: context.colors.textTertiary, fontSize: 13),
+                          ),
+                        ),
+                      );
+                    }
+                    return SliverGrid(
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        mainAxisSpacing: 18,
+                        crossAxisSpacing: 14,
+                        childAspectRatio: 0.44,
+                      ),
+                      delegate: SliverChildBuilderDelegate(
+                        (context, i) {
+                          final Book book = books[i];
+                          return BookCard(
+                            book: book,
+                            width: double.infinity,
+                            showAddToCartButton: true,
+                            onTap: () => context.push('/home/book/${book.id}'),
+                          );
+                        },
+                        childCount: books.length,
+                      ),
+                    );
+                  },
+                  loading: () => SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 20),
+                      child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: context.colors.ink)),
+                    ),
+                  ),
+                  error: (err, _) => SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 20),
+                      child: Text('Could not load the catalog.', style: TextStyle(color: context.colors.error)),
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
           ),
         ),
       ),
