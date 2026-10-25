@@ -15,6 +15,7 @@ class BookRail extends ConsumerWidget {
   const BookRail({
     super.key,
     required this.title,
+    this.subtitle,
     required this.sectionProvider,
     required this.emptyMessage,
     this.badgeLabel,
@@ -23,6 +24,7 @@ class BookRail extends ConsumerWidget {
   });
 
   final String title;
+  final String? subtitle;
   final ProviderListenable<AsyncValue<List<Book>>> sectionProvider;
   final String emptyMessage;
   final String? badgeLabel;
@@ -40,7 +42,7 @@ class BookRail extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SectionHeader(title: title),
+          SectionHeader(title: title, subtitle: subtitle),
           // Sized with headroom above BookCard/FeatureBookCard's actual
           // content height (cover + title + author + rating/price), not
           // just the cover's aspect ratio — the tighter values here used
