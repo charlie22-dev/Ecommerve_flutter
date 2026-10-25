@@ -11,7 +11,7 @@ class ThemeModeController extends AsyncNotifier<ThemeMode> {
   Future<ThemeMode> build() async {
     final prefs = await SharedPreferences.getInstance();
     final stored = prefs.getString(_prefsKey);
-    return ThemeMode.values.firstWhere((m) => m.name == stored, orElse: () => ThemeMode.dark);
+    return ThemeMode.values.firstWhere((m) => m.name == stored, orElse: () => ThemeMode.light);
   }
 
   Future<void> setThemeMode(ThemeMode mode) async {

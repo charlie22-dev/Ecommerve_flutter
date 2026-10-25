@@ -62,7 +62,7 @@ class _BookVerseAppState extends ConsumerState<BookVerseApp> {
   @override
   Widget build(BuildContext context) {
     final router = ref.watch(appRouterProvider);
-    final themeMode = ref.watch(themeModeProvider).value ?? ThemeMode.dark;
+    final themeMode = ref.watch(themeModeProvider).value ?? ThemeMode.light;
 
     return MaterialApp.router(
       title: 'BookVerse',

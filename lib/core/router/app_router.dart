@@ -46,6 +46,7 @@ import '../onboarding/launch_prefs.dart';
 import '../widgets/app_shell.dart';
 import 'app_routes.dart';
 import 'go_router_refresh_stream.dart';
+import 'page_transitions.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   // Rebuilding the router when guest-preview mode or the splash-seen flag
@@ -122,14 +123,28 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
-      GoRoute(path: AppRoute.splash, builder: (context, state) => const SplashAdScreen()),
-      GoRoute(path: AppRoute.auth, builder: (context, state) => const AuthScreen()),
-      GoRoute(path: AppRoute.cart, builder: (context, state) => const CartScreen()),
-      GoRoute(path: AppRoute.checkout, builder: (context, state) => const CheckoutScreen()),
+      GoRoute(
+        path: AppRoute.splash,
+        pageBuilder: (context, state) => buildSmoothPage(state: state, child: const SplashAdScreen()),
+      ),
+      GoRoute(
+        path: AppRoute.auth,
+        pageBuilder: (context, state) => buildSmoothPage(state: state, child: const AuthScreen(), slideFromBottom: true),
+      ),
+      GoRoute(
+        path: AppRoute.cart,
+        pageBuilder: (context, state) => buildSmoothPage(state: state, child: const CartScreen(), slideFromBottom: true),
+      ),
+      GoRoute(
+        path: AppRoute.checkout,
+        pageBuilder: (context, state) => buildSmoothPage(state: state, child: const CheckoutScreen()),
+      ),
       GoRoute(
         path: '${AppRoute.orderConfirmation}/:orderId',
-        builder: (context, state) =>
-            OrderConfirmationScreen(orderId: state.pathParameters['orderId']!),
+        pageBuilder: (context, state) => buildSmoothPage(
+          state: state,
+          child: OrderConfirmationScreen(orderId: state.pathParameters['orderId']!),
+        ),
       ),
       // Every /admin page shares the admin shell (a sidebar on wide screens).
       ShellRoute(
@@ -145,10 +160,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: AppRoute.adminVouchers,
             builder: (context, state) => const AdminVouchersScreen(),
             routes: [
-              GoRoute(path: 'new', builder: (context, state) => const AdminVoucherFormScreen()),
+              GoRoute(
+                path: 'new',
+                pageBuilder: (context, state) => buildSmoothPage(state: state, child: const AdminVoucherFormScreen()),
+              ),
               GoRoute(
                 path: ':id',
-                builder: (context, state) => AdminVoucherFormScreen(voucherId: state.pathParameters['id']!),
+                pageBuilder: (context, state) => buildSmoothPage(
+                  state: state,
+                  child: AdminVoucherFormScreen(voucherId: state.pathParameters['id']!),
+                ),
               ),
             ],
           ),
@@ -158,70 +179,99 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: ':convId',
-                builder: (context, state) => AdminConversationScreen(
-                  conversationId: state.pathParameters['convId']!,
-                  buyerName: state.uri.queryParameters['buyerName'],
-                  roleBadge: state.uri.queryParameters['roleBadge'],
+                pageBuilder: (context, state) => buildSmoothPage(
+                  state: state,
+                  child: AdminConversationScreen(
+                    conversationId: state.pathParameters['convId']!,
+                    buyerName: state.uri.queryParameters['buyerName'],
+                    roleBadge: state.uri.queryParameters['roleBadge'],
+                  ),
                 ),
               ),
             ],
           ),
           GoRoute(
             path: AppRoute.adminAddProduct,
-            builder: (context, state) => const AdminProductFormScreen(),
+            pageBuilder: (context, state) => buildSmoothPage(state: state, child: const AdminProductFormScreen()),
           ),
           GoRoute(
             path: '${AppRoute.adminEditProduct}/:id/edit',
-            builder: (context, state) => AdminProductFormScreen(bookId: state.pathParameters['id']!),
+            pageBuilder: (context, state) => buildSmoothPage(
+              state: state,
+              child: AdminProductFormScreen(bookId: state.pathParameters['id']!),
+            ),
           ),
           GoRoute(path: AppRoute.adminSellers, builder: (context, state) => const AdminSellersScreen()),
           GoRoute(path: AppRoute.adminListings, builder: (context, state) => const AdminListingsScreen()),
         ],
       ),
-      GoRoute(path: AppRoute.seller, builder: (context, state) => const SellerCenterScreen()),
-      GoRoute(path: AppRoute.sellerProducts, builder: (context, state) => const SellerProductsScreen()),
-      GoRoute(path: AppRoute.sellerOrders, builder: (context, state) => const SellerOrdersScreen()),
+      GoRoute(
+        path: AppRoute.seller,
+        pageBuilder: (context, state) => buildSmoothPage(state: state, child: const SellerCenterScreen()),
+      ),
+      GoRoute(
+        path: AppRoute.sellerProducts,
+        pageBuilder: (context, state) => buildSmoothPage(state: state, child: const SellerProductsScreen()),
+      ),
+      GoRoute(
+        path: AppRoute.sellerOrders,
+        pageBuilder: (context, state) => buildSmoothPage(state: state, child: const SellerOrdersScreen()),
+      ),
       GoRoute(
         path: AppRoute.sellerMessages,
-        builder: (context, state) => const SellerMessagesScreen(),
+        pageBuilder: (context, state) => buildSmoothPage(state: state, child: const SellerMessagesScreen()),
         routes: [
           GoRoute(
             path: ':convId',
-            builder: (context, state) => SellerConversationScreen(
-              conversationId: state.pathParameters['convId']!,
-              storeId: state.uri.queryParameters['storeId'] ?? '',
-              buyerName: state.uri.queryParameters['buyerName'],
+            pageBuilder: (context, state) => buildSmoothPage(
+              state: state,
+              child: SellerConversationScreen(
+                conversationId: state.pathParameters['convId']!,
+                storeId: state.uri.queryParameters['storeId'] ?? '',
+                buyerName: state.uri.queryParameters['buyerName'],
+              ),
             ),
           ),
         ],
       ),
       GoRoute(
         path: AppRoute.sellerAddProduct,
-        builder: (context, state) => const AdminProductFormScreen(sellerMode: true),
+        pageBuilder: (context, state) => buildSmoothPage(
+          state: state,
+          child: const AdminProductFormScreen(sellerMode: true),
+        ),
       ),
       GoRoute(
         path: '${AppRoute.sellerEditProduct}/:id/edit',
-        builder: (context, state) => AdminProductFormScreen(bookId: state.pathParameters['id']!, sellerMode: true),
+        pageBuilder: (context, state) => buildSmoothPage(
+          state: state,
+          child: AdminProductFormScreen(bookId: state.pathParameters['id']!, sellerMode: true),
+        ),
       ),
-      GoRoute(path: AppRoute.editProfile, builder: (context, state) => const EditProfileScreen()),
+      GoRoute(
+        path: AppRoute.editProfile,
+        pageBuilder: (context, state) => buildSmoothPage(state: state, child: const EditProfileScreen()),
+      ),
       // Pushed (not a nav-shell branch) — reached only via the Home search
       // bar now that Explore is no longer a bottom-nav tab. See item 6.
       GoRoute(
         path: AppRoute.explore,
-        builder: (context, state) => const ExploreScreen(),
+        pageBuilder: (context, state) => buildSmoothPage(state: state, child: const ExploreScreen()),
         routes: [_bookDetailsRoute()],
       ),
       // Pushed — reached via Profile → "Saved Books" now that Library is no
       // longer a bottom-nav tab (replaced by Notifications). See item 4.
       GoRoute(
         path: AppRoute.library,
-        builder: (context, state) => const LibraryScreen(),
+        pageBuilder: (context, state) => buildSmoothPage(state: state, child: const LibraryScreen()),
         routes: [
           _bookDetailsRoute(),
           GoRoute(
             path: 'collection/:id',
-            builder: (context, state) =>
-                CollectionDetailScreen(collectionId: state.pathParameters['id']!),
+            pageBuilder: (context, state) => buildSmoothPage(
+              state: state,
+              child: CollectionDetailScreen(collectionId: state.pathParameters['id']!),
+            ),
           ),
         ],
       ),
@@ -231,39 +281,57 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // Me screen's To Pay/To Ship/To Receive/To Rate icons).
       GoRoute(
         path: AppRoute.orders,
-        builder: (context, state) => OrdersScreen(initialTab: state.extra as OrderTab?),
+        pageBuilder: (context, state) => buildSmoothPage(
+          state: state,
+          child: OrdersScreen(initialTab: state.extra as OrderTab?),
+        ),
         routes: [
           GoRoute(
             path: ':orderId',
-            builder: (context, state) => OrderDetailScreen(orderId: state.pathParameters['orderId']!),
+            pageBuilder: (context, state) => buildSmoothPage(
+              state: state,
+              child: OrderDetailScreen(orderId: state.pathParameters['orderId']!),
+            ),
           ),
         ],
       ),
       GoRoute(
         path: AppRoute.messages,
-        builder: (context, state) => const MessagesScreen(),
+        pageBuilder: (context, state) => buildSmoothPage(state: state, child: const MessagesScreen()),
         routes: [
-          GoRoute(path: 'store', builder: (context, state) => const ConversationScreen()),
+          GoRoute(
+            path: 'store',
+            pageBuilder: (context, state) => buildSmoothPage(state: state, child: const ConversationScreen()),
+          ),
           GoRoute(
             path: 'conversation/:convId',
-            builder: (context, state) => ConversationScreen(
-              conversationId: state.pathParameters['convId'],
-              storeId: state.uri.queryParameters['storeId'],
-              storeName: state.uri.queryParameters['storeName'],
+            pageBuilder: (context, state) => buildSmoothPage(
+              state: state,
+              child: ConversationScreen(
+                conversationId: state.pathParameters['convId'],
+                storeId: state.uri.queryParameters['storeId'],
+                storeName: state.uri.queryParameters['storeName'],
+              ),
             ),
           ),
           GoRoute(
             path: 'seller/:storeId',
-            builder: (context, state) => ConversationScreen(
-              storeId: state.pathParameters['storeId'],
-              storeName: state.uri.queryParameters['name'],
+            pageBuilder: (context, state) => buildSmoothPage(
+              state: state,
+              child: ConversationScreen(
+                storeId: state.pathParameters['storeId'],
+                storeName: state.uri.queryParameters['name'],
+              ),
             ),
           ),
         ],
       ),
       GoRoute(
         path: '/reviews/:bookId',
-        builder: (context, state) => ReviewsListScreen(bookId: state.pathParameters['bookId']!),
+        pageBuilder: (context, state) => buildSmoothPage(
+          state: state,
+          child: ReviewsListScreen(bookId: state.pathParameters['bookId']!),
+        ),
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) => AppShell(navigationShell: navigationShell),
@@ -282,7 +350,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               routes: [
                 GoRoute(
                   path: ':id',
-                  builder: (context, state) => CouponDetailScreen(voucherId: state.pathParameters['id']!),
+                  pageBuilder: (context, state) => buildSmoothPage(
+                    state: state,
+                    child: CouponDetailScreen(voucherId: state.pathParameters['id']!),
+                  ),
                 ),
               ],
             ),
@@ -309,7 +380,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 GoRoute _bookDetailsRoute() {
   return GoRoute(
     path: '${AppRoute.bookDetails}/:id',
-    builder: (context, state) => BookDetailsScreen(bookId: state.pathParameters['id']!),
+    pageBuilder: (context, state) => buildSmoothPage(
+      state: state,
+      child: BookDetailsScreen(bookId: state.pathParameters['id']!),
+    ),
   );
 }
 
