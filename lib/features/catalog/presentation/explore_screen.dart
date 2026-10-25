@@ -51,6 +51,16 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
     setState(() {});
   }
 
+  Future<void> _refresh() async {
+    ref.invalidate(discoverBooksProvider);
+    ref.invalidate(sectionBooksProvider(FeaturedSection.trending));
+    ref.invalidate(exploreCategoriesProvider);
+    await Future.wait([
+      ref.read(discoverBooksProvider.future).then((_) {}, onError: (_) {}),
+      ref.read(sectionBooksProvider(FeaturedSection.trending).future).then((_) {}, onError: (_) {}),
+    ]);
+  }
+
   void _pickTypeFilter() {
     final current = ref.read(discoverFilterProvider).type;
     showModalBottomSheet(
@@ -180,7 +190,9 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
               ),
             ),
             Expanded(
-              child: isSearching ? _SearchResults(filter: filter) : const _ExploreIdleContent(),
+              child: isSearching
+                  ? _SearchResults(filter: filter, onRefresh: _refresh)
+                  : _ExploreIdleContent(onRefresh: _refresh),
             ),
           ],
         ),
@@ -190,8 +202,9 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
 }
 
 class _SearchResults extends ConsumerWidget {
-  const _SearchResults({required this.filter});
+  const _SearchResults({required this.filter, required this.onRefresh});
   final DiscoverFilter filter;
+  final Future<void> Function() onRefresh;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -200,20 +213,31 @@ class _SearchResults extends ConsumerWidget {
     return booksAsync.when(
       data: (books) {
         if (books.isEmpty) {
-          return const EmptyState(
-            icon: Icons.search_off_rounded,
-            title: 'No books found',
-            message: 'Try a different search term or category.',
+          return RefreshIndicator(
+            onRefresh: onRefresh,
+            child: ListView(
+              children: [
+                SizedBox(height: MediaQuery.sizeOf(context).height * 0.25),
+                const EmptyState(
+                  icon: Icons.search_off_rounded,
+                  title: 'No books found',
+                  message: 'Try a different search term or category.',
+                ),
+              ],
+            ),
           );
         }
-        return ListView.separated(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-          itemCount: books.length,
-          separatorBuilder: (_, _) => Divider(height: 1, color: context.colors.borderSubtle),
-          itemBuilder: (context, i) {
-            final book = books[i];
-            return CatalogListTile(book: book, onTap: () => context.push('/explore/book/${book.id}'));
-          },
+        return RefreshIndicator(
+          onRefresh: onRefresh,
+          child: ListView.separated(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+            itemCount: books.length,
+            separatorBuilder: (_, _) => Divider(height: 1, color: context.colors.borderSubtle),
+            itemBuilder: (context, i) {
+              final book = books[i];
+              return CatalogListTile(book: book, onTap: () => context.push('/explore/book/${book.id}'));
+            },
+          ),
         );
       },
       loading: () => Center(child: CircularProgressIndicator(color: context.colors.ink)),
@@ -225,7 +249,8 @@ class _SearchResults extends ConsumerWidget {
 }
 
 class _ExploreIdleContent extends ConsumerWidget {
-  const _ExploreIdleContent();
+  const _ExploreIdleContent({required this.onRefresh});
+  final Future<void> Function() onRefresh;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -233,101 +258,104 @@ class _ExploreIdleContent extends ConsumerWidget {
     final trendingAsync = ref.watch(sectionBooksProvider(FeaturedSection.trending));
     final categoriesAsync = ref.watch(exploreCategoriesProvider);
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-      children: [
-        recentAsync.when(
-          data: (recent) {
-            if (recent.isEmpty) return const SizedBox.shrink();
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Recent Search', style: Theme.of(context).textTheme.titleMedium),
-                    Semantics(
-                      button: true,
-                      label: 'Clear all recent searches',
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(8),
-                        onTap: () => ref.read(recentSearchesProvider.notifier).clear(),
-                        child: const Padding(
-                          padding: EdgeInsets.all(8),
-                          child: Text('Clear All', style: TextStyle(fontSize: 13)),
+    return RefreshIndicator(
+      onRefresh: onRefresh,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+        children: [
+          recentAsync.when(
+            data: (recent) {
+              if (recent.isEmpty) return const SizedBox.shrink();
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Recent Search', style: Theme.of(context).textTheme.titleMedium),
+                      Semantics(
+                        button: true,
+                        label: 'Clear all recent searches',
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(8),
+                          onTap: () => ref.read(recentSearchesProvider.notifier).clear(),
+                          child: const Padding(
+                            padding: EdgeInsets.all(8),
+                            child: Text('Clear All', style: TextStyle(fontSize: 13)),
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: recent
-                      .map((term) => _RecentChip(
-                            term: term,
-                            onTap: (t) => ref.read(discoverFilterProvider.notifier).update((s) => s.copyWith(searchQuery: t)),
-                          ))
-                      .toList(),
-                ),
-                const SizedBox(height: 8),
-              ],
-            );
-          },
-          loading: () => const SizedBox.shrink(),
-          error: (err, _) => const SizedBox.shrink(),
-        ),
-        SectionHeader(title: 'Trending This Week'),
-        SizedBox(
-          height: 300,
-          child: trendingAsync.when(
-            data: (books) {
-              if (books.isEmpty) {
-                return Center(
-                  child: Text('No trending titles yet.', style: TextStyle(color: context.colors.textTertiary, fontSize: 13)),
-                );
-              }
-              return ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: books.length,
-                separatorBuilder: (_, _) => const SizedBox(width: 12),
-                itemBuilder: (context, i) => BookCard(
-                  book: books[i],
-                  onTap: () => context.push('/explore/book/${books[i].id}'),
-                ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: recent
+                        .map((term) => _RecentChip(
+                              term: term,
+                              onTap: (t) => ref.read(discoverFilterProvider.notifier).update((s) => s.copyWith(searchQuery: t)),
+                            ))
+                        .toList(),
+                  ),
+                  const SizedBox(height: 8),
+                ],
               );
             },
-            loading: () => Center(child: CircularProgressIndicator(color: context.colors.ink)),
+            loading: () => const SizedBox.shrink(),
             error: (err, _) => const SizedBox.shrink(),
           ),
-        ),
-        SectionHeader(title: 'Explore by Categories'),
-        SizedBox(
-          height: 300,
-          child: categoriesAsync.when(
-            data: (picks) {
-              if (picks.isEmpty) {
-                return Center(
-                  child: Text('No categories yet.', style: TextStyle(color: context.colors.textTertiary, fontSize: 13)),
+          SectionHeader(title: 'Trending This Week'),
+          SizedBox(
+            height: 300,
+            child: trendingAsync.when(
+              data: (books) {
+                if (books.isEmpty) {
+                  return Center(
+                    child: Text('No trending titles yet.', style: TextStyle(color: context.colors.textTertiary, fontSize: 13)),
+                  );
+                }
+                return ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: books.length,
+                  separatorBuilder: (_, _) => const SizedBox(width: 12),
+                  itemBuilder: (context, i) => BookCard(
+                    book: books[i],
+                    onTap: () => context.push('/explore/book/${books[i].id}'),
+                  ),
                 );
-              }
-              return ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: picks.length,
-                separatorBuilder: (_, _) => const SizedBox(width: 12),
-                itemBuilder: (context, i) => BookCard(
-                  book: picks[i].book,
-                  badgeLabel: picks[i].genre,
-                  onTap: () => context.push('/explore/book/${picks[i].book.id}'),
-                ),
-              );
-            },
-            loading: () => Center(child: CircularProgressIndicator(color: context.colors.ink)),
-            error: (err, _) => const SizedBox.shrink(),
+              },
+              loading: () => Center(child: CircularProgressIndicator(color: context.colors.ink)),
+              error: (err, _) => const SizedBox.shrink(),
+            ),
           ),
-        ),
-      ],
+          SectionHeader(title: 'Explore by Categories'),
+          SizedBox(
+            height: 300,
+            child: categoriesAsync.when(
+              data: (picks) {
+                if (picks.isEmpty) {
+                  return Center(
+                    child: Text('No categories yet.', style: TextStyle(color: context.colors.textTertiary, fontSize: 13)),
+                  );
+                }
+                return ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: picks.length,
+                  separatorBuilder: (_, _) => const SizedBox(width: 12),
+                  itemBuilder: (context, i) => BookCard(
+                    book: picks[i].book,
+                    badgeLabel: picks[i].genre,
+                    onTap: () => context.push('/explore/book/${picks[i].book.id}'),
+                  ),
+                );
+              },
+              loading: () => Center(child: CircularProgressIndicator(color: context.colors.ink)),
+              error: (err, _) => const SizedBox.shrink(),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
