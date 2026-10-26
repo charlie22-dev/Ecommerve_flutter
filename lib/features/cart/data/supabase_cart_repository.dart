@@ -18,12 +18,21 @@ class SupabaseCartRepository implements CartRepository {
       await remove(uid, bookId);
       return;
     }
-    await db.from(Tables.cartItems).upsert({
-      'user_id': uid,
-      'book_id': bookId,
-      'quantity': quantity,
-      'added_at': DateTime.now().toUtc().toIso8601String(),
-    });
+    // Update existing row quantity so added_at is preserved, preventing item re-ordering
+    final updated = await db
+        .from(Tables.cartItems)
+        .update({'quantity': quantity})
+        .eq('user_id', uid)
+        .eq('book_id', bookId)
+        .select();
+    if (updated.isEmpty) {
+      await db.from(Tables.cartItems).insert({
+        'user_id': uid,
+        'book_id': bookId,
+        'quantity': quantity,
+        'added_at': DateTime.now().toUtc().toIso8601String(),
+      });
+    }
   }
 
   @override
@@ -34,6 +43,8 @@ class SupabaseCartRepository implements CartRepository {
   @override
   Future<void> clear(String uid, List<String> bookIds) async {
     if (bookIds.isEmpty) return;
-    await db.from(Tables.cartItems).delete().eq('user_id', uid).inFilter('book_id', bookIds);
+    for (final id in bookIds) {
+      await db.from(Tables.cartItems).delete().eq('user_id', uid).eq('book_id', id);
+    }
   }
 }
