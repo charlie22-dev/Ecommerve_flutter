@@ -90,9 +90,9 @@ begin
     '[{"book_id":"00000000-0000-0000-0000-0000000b0002","quantity":2,"unitPrice":0}]',
     '00000000-0000-0000-0000-00000000ad01', 'standard', 'cashOnDelivery', 'test10');
   select * into o from public.orders where id = (r ->> 'id')::uuid;
-  assert o.subtotal = 500 and o.voucher_discount = 50 and o.shipping_cost = 60 and o.total = 510,
+  assert o.subtotal = 500 and o.voucher_discount = 50 and o.shipping_cost = 60 and o.tax_amount = 60 and o.total = 570,
     format('8: wrong totals %s/%s/%s/%s', o.subtotal, o.voucher_discount, o.shipping_cost, o.total);
-  assert (r ->> 'total')::numeric = 510, '8: wrong returned total';
+  assert (r ->> 'total')::numeric = 570, '8: wrong returned total';
   assert o.status = 'toShip', '8: COD order should be toShip';
 
   begin
