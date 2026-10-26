@@ -2,10 +2,11 @@ import '../../../core/models/app_notification.dart';
 import '../../../core/models/order.dart';
 import '../../../core/services/db.dart';
 import '../../notifications/data/notification_repository.dart';
+import 'checkout_functions_service.dart';
 
 class OrderRepository {
   OrderRepository({NotificationRepository? notifications})
-      : _notifications = notifications ?? NotificationRepository();
+    : _notifications = notifications ?? NotificationRepository();
 
   final NotificationRepository _notifications;
 
@@ -21,43 +22,83 @@ class OrderRepository {
     required String shippingOptionId,
     required PaymentMethod paymentMethod,
     required String idempotencyKey,
+    bool fromCart = true,
     String? voucherCode,
   }) async {
-    final result = await db.rpc('place_order', params: {
-      'p_items': [
-        for (final i in items) {'book_id': i.bookId, 'quantity': i.quantity},
-      ],
-      'p_address_id': addressId,
-      'p_shipping_option_id': shippingOptionId,
-      'p_payment_method': paymentMethod.name,
-      'p_voucher_code': voucherCode,
-      'p_idempotency_key': idempotencyKey,
-    });
+    final result = await db.rpc(
+      'place_order',
+      params: {
+        'p_items': [
+          for (final i in items)
+            {
+              'book_id': i.bookId,
+              'quantity': i.quantity,
+              'checkout_source': fromCart ? 'cart' : 'buyNow',
+            },
+        ],
+        'p_address_id': addressId,
+        'p_shipping_option_id': shippingOptionId,
+        'p_payment_method': paymentMethod.name,
+        'p_voucher_code': voucherCode,
+        'p_idempotency_key': idempotencyKey,
+      },
+    );
     final row = Map<String, dynamic>.from(result as Map);
     final id = row['id'] as String;
-    await _notifications.create(
-      userId: uid,
-      category: NotificationCategory.orderUpdate,
-      title: 'Order placed',
-      body: paymentMethod == PaymentMethod.cashOnDelivery
-          ? 'Your order #${_shortId(id)} is confirmed and will be shipped soon.'
-          : 'Your order #${_shortId(id)} is awaiting payment confirmation.',
-      relatedOrderId: id,
-    );
+    // A notification failure must not turn a committed purchase into a failed checkout.
+    try {
+      await _notifications.create(
+        userId: uid,
+        category: NotificationCategory.orderUpdate,
+        title: 'Order placed',
+        body: paymentMethod == PaymentMethod.cashOnDelivery
+            ? 'Your order #${_shortId(id)} is confirmed and will be shipped soon.'
+            : 'Your order #${_shortId(id)} is awaiting payment confirmation.',
+        relatedOrderId: id,
+      );
+    } catch (_) {
+      // The order is already committed; its receipt remains the source of truth.
+    }
     return (id: id, total: toDouble(row['total']));
   }
 
   Stream<Order?> watchOrder(String orderId) {
     return watchQuery(Tables.orders, () async {
-      final row = await db.from(Tables.orders).select().eq('id', orderId).maybeSingle();
+      final row = await db
+          .from(Tables.orders)
+          .select()
+          .eq('id', orderId)
+          .maybeSingle();
       return row == null ? null : Order.fromRow(row);
     });
   }
 
+  Future<Order?> getOrder(String orderId) async {
+    final row = await db
+        .from(Tables.orders)
+        .select()
+        .eq('id', orderId)
+        .maybeSingle();
+    return row == null ? null : Order.fromRow(row);
+  }
+
+  Future<Order?> refreshPayment(String orderId) async {
+    try {
+      return await CheckoutFunctionsService().syncPayment(orderId);
+    } catch (_) {
+      // A delivered webhook remains authoritative if provider verification is
+      // temporarily unavailable. Never fabricate a successful payment.
+      return getOrder(orderId);
+    }
+  }
+
   Stream<List<Order>> watchOrdersForUser(String uid) {
     return watchQuery(Tables.orders, () async {
-      final rows =
-          await db.from(Tables.orders).select().eq('user_id', uid).order('created_at', ascending: false);
+      final rows = await db
+          .from(Tables.orders)
+          .select()
+          .eq('user_id', uid)
+          .order('created_at', ascending: false);
       return rows.map(Order.fromRow).toList();
     });
   }
@@ -70,7 +111,8 @@ class OrderRepository {
         .from(Tables.orders)
         .update({
           'status': status.name,
-          if (status == OrderStatus.toShip) 'paid_at': DateTime.now().toUtc().toIso8601String(),
+          if (status == OrderStatus.toShip)
+            'paid_at': DateTime.now().toUtc().toIso8601String(),
         })
         .eq('id', orderId)
         .select('user_id')
@@ -79,12 +121,18 @@ class OrderRepository {
     if (ownerUid == null) return;
 
     final (title, body) = switch (status) {
-      OrderStatus.toReceive => ('Order shipped', 'Order #${_shortId(orderId)} is on its way to you.'),
+      OrderStatus.toReceive => (
+        'Order shipped',
+        'Order #${_shortId(orderId)} is on its way to you.',
+      ),
       OrderStatus.completed => (
-          'Order delivered',
-          'Order #${_shortId(orderId)} has been delivered — let us know what you think!'
-        ),
-      OrderStatus.cancelled => ('Order cancelled', 'Order #${_shortId(orderId)} was cancelled.'),
+        'Order delivered',
+        'Order #${_shortId(orderId)} has been delivered — let us know what you think!',
+      ),
+      OrderStatus.cancelled => (
+        'Order cancelled',
+        'Order #${_shortId(orderId)} was cancelled.',
+      ),
       _ => (null, null),
     };
     if (title == null) return;
