@@ -48,7 +48,9 @@ class Voucher extends Equatable {
 
   double discountFor(double subtotal) {
     if (!isEligible(subtotal)) return 0;
-    final raw = discountType == DiscountType.percent ? subtotal * discountValue / 100 : discountValue;
+    final raw = discountType == DiscountType.percent
+        ? (subtotal * discountValue).round() / 100
+        : discountValue;
     final capped = maxDiscount != null ? raw.clamp(0, maxDiscount!) : raw;
     return capped.clamp(0, subtotal).toDouble();
   }
