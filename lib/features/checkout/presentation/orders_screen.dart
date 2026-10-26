@@ -211,7 +211,8 @@ class _OrderTile extends ConsumerWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(order.paymentMethod.label, style: TextStyle(color: colors.textSecondary, fontSize: 13)),
+                Flexible(child: Text('${order.paymentMethodLabel} · ${order.paymentStatusLabel}',
+                  style: TextStyle(color: order.isPaid ? colors.success : colors.textSecondary, fontSize: 13))),
                 Text(
                   '₱${order.total.toStringAsFixed(2)}',
                   style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w800, fontSize: 15),
