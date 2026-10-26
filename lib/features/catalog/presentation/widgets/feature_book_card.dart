@@ -37,7 +37,7 @@ class FeatureBookCard extends ConsumerWidget {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Added "${book.title}" to cart'),
-        duration: const Duration(seconds: 2),
+        duration: const Duration(seconds: 3),
         action: SnackBarAction(
           label: 'View Cart',
           onPressed: () => context.push(AppRoute.cart),
@@ -66,7 +66,9 @@ class FeatureBookCard extends ConsumerWidget {
                     right: 8,
                     child: Material(
                       color: Colors.transparent,
+                      shape: const CircleBorder(),
                       child: InkWell(
+                        customBorder: const CircleBorder(),
                         onTap: () {
                           if (onAddToCart != null) {
                             onAddToCart!();
@@ -74,23 +76,23 @@ class FeatureBookCard extends ConsumerWidget {
                             _handleAddToCart(context, ref);
                           }
                         },
-                        borderRadius: BorderRadius.circular(18),
                         child: Container(
-                          padding: const EdgeInsets.all(7),
+                          width: 40,
+                          height: 40,
                           decoration: BoxDecoration(
                             color: book.inStock ? context.colors.ink : context.colors.surfaceMuted,
                             shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.28),
-                                blurRadius: 4,
+                                color: Colors.black.withValues(alpha: 0.32),
+                                blurRadius: 6,
                                 offset: const Offset(0, 2),
                               ),
                             ],
                           ),
                           child: Icon(
                             Icons.add_shopping_cart_rounded,
-                            size: 15,
+                            size: 19,
                             color: book.inStock ? context.colors.onInk : context.colors.textTertiary,
                           ),
                         ),
