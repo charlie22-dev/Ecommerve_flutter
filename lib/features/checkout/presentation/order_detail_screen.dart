@@ -14,6 +14,7 @@ import '../../catalog/presentation/catalog_providers.dart';
 import '../../seller/presentation/seller_providers.dart';
 import 'checkout_providers.dart';
 import 'orders_screen.dart';
+import 'payment_webview_screen.dart';
 import 'widgets/rate_order_sheet.dart';
 
 class OrderDetailScreen extends ConsumerWidget {
@@ -25,17 +26,31 @@ class OrderDetailScreen extends ConsumerWidget {
     final colors = context.colors;
     final orderAsync = ref.watch(orderStreamProvider(orderId));
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Order Details')),
-      body: orderAsync.when(
-        data: (order) {
-          if (order == null) {
-            return Center(child: Text('Order not found.', style: TextStyle(color: colors.textSecondary)));
-          }
-          return _OrderDetailBody(order: order);
-        },
-        loading: () => Center(child: CircularProgressIndicator(color: colors.ink)),
-        error: (err, _) => Center(child: Text('Could not load this order.', style: TextStyle(color: colors.error))),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        context.go('/home');
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Order Details'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded),
+            tooltip: 'Home',
+            onPressed: () => context.go('/home'),
+          ),
+        ),
+        body: orderAsync.when(
+          data: (order) {
+            if (order == null) {
+              return Center(child: Text('Order not found.', style: TextStyle(color: colors.textSecondary)));
+            }
+            return _OrderDetailBody(order: order);
+          },
+          loading: () => Center(child: CircularProgressIndicator(color: colors.ink)),
+          error: (err, _) => Center(child: Text('Could not load this order.', style: TextStyle(color: colors.error))),
+        ),
       ),
     );
   }
@@ -76,6 +91,41 @@ class _OrderDetailBody extends ConsumerWidget {
           Text(DateFormat.yMMMd().add_jm().format(order.createdAt!), style: TextStyle(color: colors.textTertiary, fontSize: 12)),
         ],
         const SizedBox(height: 20),
+        if (order.status == OrderStatus.pending) ...[
+          const Text('Awaiting payment confirmation. If you already paid, your order will update after confirmation.'),
+          const SizedBox(height: 12),
+          if (order.paymentMethod != PaymentMethod.cashOnDelivery)
+            OutlinedButton.icon(
+              icon: const Icon(Icons.payment),
+              label: const Text('Continue payment'),
+              onPressed: () async {
+                try {
+                  final invoice = await ref.read(checkoutFunctionsServiceProvider).createXenditInvoice(
+                    orderId: order.id, amount: order.total,
+                  );
+                  if (!context.mounted) return;
+                  await Navigator.of(context).push<bool>(MaterialPageRoute(
+                    builder: (_) => PaymentWebViewScreen(
+                      orderId: order.id, checkoutUrl: invoice['invoice_url'] as String,
+                    ),
+                  ));
+                  ref.invalidate(orderStreamProvider(order.id));
+                  ref.invalidate(userOrdersProvider);
+                } catch (_) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content: Text('Could not open payment. Refresh your order status and try again.'),
+                    ));
+                  }
+                }
+              },
+            ),
+          TextButton.icon(
+            onPressed: () => ref.invalidate(orderStreamProvider(order.id)),
+            icon: const Icon(Icons.refresh),
+            label: const Text('Refresh status'),
+          ),
+        ],
         _SectionCard(
           title: 'Items',
           child: Column(
@@ -130,7 +180,17 @@ class _OrderDetailBody extends ConsumerWidget {
           child: Column(
             children: [
               _Row('Shipping method', '${shipping.label} (${shipping.eta})'),
-              _Row('Payment method', order.paymentMethod.label),
+              _Row('Payment status', order.paymentStatusLabel,
+                valueColor: order.isPaid ? colors.success : colors.textSecondary),
+              _Row('Payment method', order.paymentMethodLabel),
+              if (order.amountPaid != null)
+                _Row('Amount paid', '${order.paymentCurrency ?? 'PHP'} ${order.amountPaid!.toStringAsFixed(2)}'),
+              if (order.paidAt != null)
+                _Row('Paid on', DateFormat.yMMMd().add_jm().format(order.paidAt!)),
+              if (order.xenditPaymentId != null)
+                _Row('Transaction reference', order.xenditPaymentId!),
+              if (order.xenditInvoiceId != null)
+                _Row('Invoice reference', order.xenditInvoiceId!),
             ],
           ),
         ),
@@ -141,6 +201,7 @@ class _OrderDetailBody extends ConsumerWidget {
             children: [
               _Row('Subtotal', '₱${order.subtotal.toStringAsFixed(2)}'),
               _Row('Shipping', order.shippingCost == 0 ? 'Free' : '₱${order.shippingCost.toStringAsFixed(2)}'),
+              _Row('Tax', '₱${order.taxAmount.toStringAsFixed(2)}'),
               if (order.voucherCode != null)
                 _Row('Voucher (${order.voucherCode})', '−₱${order.voucherDiscount.toStringAsFixed(2)}', valueColor: colors.success),
               const Divider(height: 20),
@@ -156,7 +217,8 @@ class _OrderDetailBody extends ConsumerWidget {
             label: const Text('Rate this order'),
           ),
         ],
-        if (isAdmin && (order.status == OrderStatus.toShip || order.status == OrderStatus.toReceive)) ...[
+        if (isAdmin && (order.isPaid || order.paymentMethod == PaymentMethod.cashOnDelivery) &&
+            (order.status == OrderStatus.toShip || order.status == OrderStatus.toReceive)) ...[
           const SizedBox(height: 20),
           OutlinedButton.icon(
             onPressed: () => ref.read(orderRepositoryProvider).updateStatus(
