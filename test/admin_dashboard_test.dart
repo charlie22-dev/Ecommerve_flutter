@@ -94,6 +94,9 @@ void main() {
           shippingAddress: null,
           shippingOptionId: 'standard',
           status: status,
+          paymentMethod: PaymentMethod.gcash,
+          paymentStatus: status == OrderStatus.pending ? 'pending' : 'paid',
+          paymentChannel: status == OrderStatus.pending ? null : 'GRABPAY',
           createdAt: today,
         ),
         customer: CustomerInfo(uid: 'u$i', name: 'Customer $i', email: 'customer$i@example.com'),
@@ -120,6 +123,11 @@ void main() {
             child: MaterialApp(theme: theme, home: screen),
           ));
           await tester.pump();
+          if (screen is AdminOrdersScreen) {
+            expect(find.textContaining('GrabPay'), findsWidgets);
+            expect(find.textContaining('Paid'), findsWidgets);
+            expect(find.text('Mark as paid'), findsNothing);
+          }
         }
         // The products screen is the one left on screen.
         expect(find.text('Solo Leveling'), findsOneWidget);
