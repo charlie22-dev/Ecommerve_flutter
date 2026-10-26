@@ -11,6 +11,51 @@ import 'package:my_app/core/models/shipping_address.dart';
 import 'package:my_app/core/models/voucher.dart';
 
 void main() {
+  test('verified payment preserves actual hosted channel and transaction metadata', () {
+    final row = <String, dynamic>{
+      'id': 'order',
+      'user_id': 'buyer',
+      'status': 'toShip',
+      'payment_method': 'gcash',
+      'payment_status': 'paid',
+      'payment_channel': 'GRABPAY',
+      'provider_payment_method': 'EWALLET',
+      'xendit_invoice_id': 'invoice-123',
+      'xendit_payment_id': 'payment-456',
+      'xendit_invoice_status': 'PAID',
+      'amount_paid': 620,
+      'payment_currency': 'PHP',
+      'paid_at': '2026-10-26T01:00:00Z',
+      'payment_verified_at': '2026-10-26T01:00:01Z',
+    };
+    final order = Order.fromRow(row);
+    expect(order.isPaid, isTrue);
+    expect(order.paymentStatusLabel, 'Paid');
+    expect(order.paymentMethodLabel, 'GrabPay');
+    expect(order.amountPaid, 620);
+    expect(order.xenditPaymentId, 'payment-456');
+    expect(order.toRow()['payment_channel'], 'GRABPAY');
+    final pending = Order.fromRow({...row, 'payment_status': 'pending'});
+    expect(
+      pending.isPaid,
+      isFalse,
+      reason:
+          'An old manually set paid_at does not override provider verification',
+    );
+    expect(
+      order,
+      isNot(pending),
+      reason: 'Payment changes must notify listeners even when shipping status stays the same',
+    );
+    final review = Order.fromRow({
+      ...row,
+      'payment_status': 'requires_review',
+      'status': 'failed',
+    });
+    expect(review.isPaid, isFalse);
+    expect(review.paymentStatusLabel, contains('Payment received'));
+  });
+
   test('Book.fromRow reads every column and toRow writes them back', () {
     final row = {
       'id': '6f1c2b1e-0000-4000-8000-000000000001',
@@ -47,7 +92,10 @@ void main() {
     expect(book.ratingCount, 5210);
     expect(book.featuredSections, [FeaturedSection.trending]);
     expect(book.releaseDate, DateTime(2003));
-    expect(book.createdAt!.toUtc(), DateTime.utc(2026, 10, 6, 1, 2, 3, 123, 456));
+    expect(
+      book.createdAt!.toUtc(),
+      DateTime.utc(2026, 10, 6, 1, 2, 3, 123, 456),
+    );
 
     final out = book.toRow();
     expect(out['cover_url'], row['cover_url']);
@@ -56,7 +104,11 @@ void main() {
     expect(out['featured_sections'], ['trending']);
     expect(book.moderationNote, 'Blurry cover');
     expect(out['listing_status'], 'rejected');
-    expect(out.containsKey('id'), isFalse, reason: 'id/created_at are DB defaults');
+    expect(
+      out.containsKey('id'),
+      isFalse,
+      reason: 'id/created_at are DB defaults',
+    );
   });
 
   test('Order round-trips jsonb items and shipping address', () {
@@ -73,7 +125,15 @@ void main() {
     const order = Order(
       id: 'aaaaaaaa-0000-0000-0000-000000000001',
       uid: 'u1',
-      items: [OrderLineItem(bookId: 'b1', title: 'T', coverUrl: '', unitPrice: 320, quantity: 2)],
+      items: [
+        OrderLineItem(
+          bookId: 'b1',
+          title: 'T',
+          coverUrl: '',
+          unitPrice: 320,
+          quantity: 2,
+        ),
+      ],
       subtotal: 640,
       shippingCost: 60,
       voucherCode: 'WELCOME20',
@@ -91,6 +151,15 @@ void main() {
     expect(back.shippingAddress!.city, 'Cebu');
     expect(back.status, OrderStatus.toShip);
     expect(back.total, 572);
+    expect(
+      back.taxAmount,
+      0,
+      reason: 'Historical receipts must not gain a new tax charge',
+    );
+    final taxed = Order.fromRow({...row, 'tax_amount': 76.8, 'total': 648.8});
+    expect(taxed.taxAmount, 76.8);
+    expect(taxed.toRow()['tax_amount'], 76.8);
+    expect(taxed.total, 648.8);
   });
 
   test('ShippingAddress.toRow omits an empty id so Postgres generates one', () {
@@ -142,8 +211,14 @@ void main() {
 
   test('Open Library covers: medium when small, 404 when missing', () {
     const l = 'https://covers.openlibrary.org/b/isbn/9781569319000-L.jpg';
-    expect(BookCoverImage.sizedUrl(l, 150), 'https://covers.openlibrary.org/b/isbn/9781569319000-M.jpg?default=false');
+    expect(
+      BookCoverImage.sizedUrl(l, 150),
+      'https://covers.openlibrary.org/b/isbn/9781569319000-M.jpg?default=false',
+    );
     expect(BookCoverImage.sizedUrl(l, 400), '$l?default=false');
-    expect(BookCoverImage.sizedUrl('https://x.supabase.co/a.png', 150), 'https://x.supabase.co/a.png');
+    expect(
+      BookCoverImage.sizedUrl('https://x.supabase.co/a.png', 150),
+      'https://x.supabase.co/a.png',
+    );
   });
 }
