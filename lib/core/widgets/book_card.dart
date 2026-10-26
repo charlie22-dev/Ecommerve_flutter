@@ -43,7 +43,7 @@ class BookCard extends ConsumerWidget {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Added "${book.title}" to cart'),
-        duration: const Duration(seconds: 2),
+        duration: const Duration(seconds: 3),
         action: SnackBarAction(
           label: 'View Cart',
           onPressed: () => context.push(AppRoute.cart),
@@ -94,7 +94,9 @@ class BookCard extends ConsumerWidget {
                     right: 8,
                     child: Material(
                       color: Colors.transparent,
+                      shape: const CircleBorder(),
                       child: InkWell(
+                        customBorder: const CircleBorder(),
                         onTap: () {
                           if (onAddToCart != null) {
                             onAddToCart!();
@@ -102,23 +104,23 @@ class BookCard extends ConsumerWidget {
                             _handleAddToCart(context, ref);
                           }
                         },
-                        borderRadius: BorderRadius.circular(18),
                         child: Container(
-                          padding: const EdgeInsets.all(7),
+                          width: 40,
+                          height: 40,
                           decoration: BoxDecoration(
                             color: book.inStock ? context.colors.ink : context.colors.surfaceMuted,
                             shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.28),
-                                blurRadius: 4,
+                                color: Colors.black.withValues(alpha: 0.32),
+                                blurRadius: 6,
                                 offset: const Offset(0, 2),
                               ),
                             ],
                           ),
                           child: Icon(
                             Icons.add_shopping_cart_rounded,
-                            size: 15,
+                            size: 19,
                             color: book.inStock ? context.colors.onInk : context.colors.textTertiary,
                           ),
                         ),
@@ -166,7 +168,7 @@ class BookCard extends ConsumerWidget {
               const SizedBox(height: 6),
               SizedBox(
                 width: double.infinity,
-                height: 30,
+                height: 36,
                 child: ElevatedButton.icon(
                   onPressed: book.inStock
                       ? () {
@@ -177,17 +179,17 @@ class BookCard extends ConsumerWidget {
                           }
                         }
                       : null,
-                  icon: const Icon(Icons.add_shopping_cart_rounded, size: 13),
+                  icon: const Icon(Icons.add_shopping_cart_rounded, size: 16),
                   label: Text(
                     book.inStock ? 'Add to Cart' : 'Out of stock',
-                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
                   ),
                   style: ElevatedButton.styleFrom(
-                    padding: EdgeInsets.zero,
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
                     backgroundColor: context.colors.ink,
                     foregroundColor: context.colors.onInk,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    elevation: 1,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
                 ),
               ),
