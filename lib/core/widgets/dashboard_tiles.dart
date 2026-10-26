@@ -71,13 +71,24 @@ class StatTile extends StatelessWidget {
 
 /// Navigation row with icon, title, subtitle, and an optional unread badge count.
 class DashboardNavRow extends StatelessWidget {
-  const DashboardNavRow({super.key, required this.icon, required this.title, required this.subtitle, required this.onTap, this.badge = 0});
+  const DashboardNavRow({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+    this.badge = 0,
+    this.iconColor,
+    this.titleColor,
+  });
 
   final IconData icon;
   final String title;
   final String subtitle;
   final VoidCallback onTap;
   final int badge;
+  final Color? iconColor;
+  final Color? titleColor;
 
   @override
   Widget build(BuildContext context) {
@@ -101,15 +112,24 @@ class DashboardNavRow extends StatelessWidget {
                 Container(
                   width: 40,
                   height: 40,
-                  decoration: BoxDecoration(color: colors.surfaceMuted, borderRadius: BorderRadius.circular(10)),
-                  child: Icon(icon, color: colors.textPrimary, size: 20),
+                  decoration: BoxDecoration(
+                    color: iconColor != null ? iconColor!.withValues(alpha: 0.12) : colors.surfaceMuted,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(icon, color: iconColor ?? colors.textPrimary, size: 20),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(title, style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w700)),
+                      Text(
+                        title,
+                        style: TextStyle(
+                          color: titleColor ?? colors.textPrimary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                       const SizedBox(height: 2),
                       Text(subtitle, style: TextStyle(color: colors.textTertiary, fontSize: 12)),
                     ],
