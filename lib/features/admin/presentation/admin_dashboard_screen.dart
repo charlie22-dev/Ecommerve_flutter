@@ -3,11 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/auth/pending_return_location.dart';
+import '../../../core/dev/dev_preview.dart';
 import '../../../core/models/book.dart';
 import '../../../core/models/order.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_color_tokens.dart';
 import '../../../core/widgets/dashboard_tiles.dart';
+import '../../auth/presentation/auth_controller.dart';
 import '../data/admin_repository.dart';
 import 'admin_providers.dart';
 import 'admin_shell.dart';
@@ -410,6 +413,7 @@ class _MobileMenu extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colors = context.colors;
     final todo = ref.watch(adminTodoProvider);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -455,6 +459,40 @@ class _MobileMenu extends ConsumerWidget {
           subtitle: 'Reply to customers as BookVerse Store',
           badge: todo.unansweredMessages,
           onTap: () => context.push(AppRoute.adminMessages),
+        ),
+        DashboardNavRow(
+          icon: Icons.logout_rounded,
+          title: 'Sign out',
+          subtitle: 'Log out of BookVerse Admin',
+          iconColor: colors.error,
+          titleColor: colors.error,
+          onTap: () async {
+            final confirm = await showDialog<bool>(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                title: const Text('Sign out?'),
+                content: const Text('Are you sure you want to sign out of BookVerse Admin?'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(ctx).pop(false),
+                    child: const Text('Cancel'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.of(ctx).pop(true),
+                    child: Text('Sign out', style: TextStyle(color: ctx.colors.error)),
+                  ),
+                ],
+              ),
+            );
+            if (confirm == true && context.mounted) {
+              ref.read(pendingReturnLocationProvider.notifier).state = null;
+              ref.read(devGuestModeProvider.notifier).state = false;
+              await ref.read(authControllerProvider.notifier).signOut();
+              if (context.mounted) {
+                context.go(AppRoute.home);
+              }
+            }
+          },
         ),
       ],
     );
