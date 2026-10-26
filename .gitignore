@@ -88,3 +88,8 @@ firebase-legacy/scripts/book-covers-inbox/*.webp
 # Supabase CLI local state (if you use `supabase link` / `supabase start`).
 supabase/.temp/
 supabase/.branches/
+
+# Local Supabase/app credentials. Keep personal account passwords out of env files.
+.env
+.env.*
+!.env.example
