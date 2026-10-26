@@ -114,7 +114,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // Admins only have the Admin Panel — they cannot shop, order, or use customer cart/checkout.
       if (isLoggedIn && isAdmin && !state.matchedLocation.startsWith('/admin')) {
         // Allow profile (for settings/logout), auth, and messages
-        const adminAllowed = [AppRoute.profile, AppRoute.auth, '/messages', '/admin'];
+        const adminAllowed = [AppRoute.profile, AppRoute.auth, '/messages', '/admin', AppRoute.orders];
         final isAllowed = adminAllowed.any(
           (p) => state.matchedLocation == p || state.matchedLocation.startsWith('$p/'),
         );
