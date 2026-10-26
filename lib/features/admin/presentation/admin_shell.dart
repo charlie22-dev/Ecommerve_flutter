@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/auth/pending_return_location.dart';
+import '../../../core/dev/dev_preview.dart';
 import '../../../core/router/app_routes.dart';
 import '../../../core/theme/app_color_tokens.dart';
+import '../../auth/presentation/auth_controller.dart';
 import 'admin_providers.dart';
 
 /// Wraps every /admin page. On wide screens (web/desktop) it adds a fixed
@@ -95,8 +98,43 @@ class _Sidebar extends ConsumerWidget {
             Divider(height: 1, color: colors.borderSubtle),
             Padding(
               padding: const EdgeInsets.all(12),
-              child: _SidebarTile(
-                item: _Item(Icons.arrow_back_rounded, 'Back to store', AppRoute.profile, selected: false),
+              child: Column(
+                children: [
+                  _SidebarTile(
+                    item: _Item(Icons.arrow_back_rounded, 'Back to store', AppRoute.profile, selected: false),
+                  ),
+                  _SidebarTile(
+                    item: _Item(Icons.logout_rounded, 'Sign out', '', selected: false),
+                    customColor: colors.error,
+                    onCustomTap: () async {
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('Sign out?'),
+                          content: const Text('Are you sure you want to sign out of BookVerse Admin?'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.of(ctx).pop(false),
+                              child: const Text('Cancel'),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.of(ctx).pop(true),
+                              child: Text('Sign out', style: TextStyle(color: ctx.colors.error)),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (confirm == true && context.mounted) {
+                        ref.read(pendingReturnLocationProvider.notifier).state = null;
+                        ref.read(devGuestModeProvider.notifier).state = false;
+                        await ref.read(authControllerProvider.notifier).signOut();
+                        if (context.mounted) {
+                          context.go(AppRoute.home);
+                        }
+                      }
+                    },
+                  ),
+                ],
               ),
             ),
           ],
@@ -116,13 +154,15 @@ class _Item {
 }
 
 class _SidebarTile extends StatelessWidget {
-  const _SidebarTile({required this.item});
+  const _SidebarTile({required this.item, this.onCustomTap, this.customColor});
   final _Item item;
+  final VoidCallback? onCustomTap;
+  final Color? customColor;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final fg = item.selected ? colors.onInk : colors.textPrimary;
+    final fg = customColor ?? (item.selected ? colors.onInk : colors.textPrimary);
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
       child: Material(
@@ -130,7 +170,7 @@ class _SidebarTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
           // `go`, not `push`: sections replace each other, like tabs.
-          onTap: () => context.go(item.route),
+          onTap: onCustomTap ?? () => context.go(item.route),
           borderRadius: BorderRadius.circular(12),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
