@@ -5,6 +5,8 @@ import 'package:intl/intl.dart';
 
 import '../../../core/auth/require_login.dart';
 import '../../../core/models/book.dart';
+import '../../../core/router/app_routes.dart';
+import '../../../core/widgets/cart_icon_button.dart';
 import '../../../core/theme/app_color_tokens.dart';
 import '../../../core/widgets/book_cover_image.dart';
 import '../../../core/widgets/primary_button.dart';
@@ -89,6 +91,7 @@ class _BookDetailsBodyState extends ConsumerState<_BookDetailsBody> {
                 if (ensureLoggedIn(context, ref)) ref.read(wishlistActionsProvider).toggle(book.id, isWishlisted);
               },
             ),
+            const CartIconButton(),
             IconButton(
               tooltip: 'Add to collection',
               icon: const Icon(Icons.playlist_add_rounded),
@@ -119,8 +122,8 @@ class _BookDetailsBodyState extends ConsumerState<_BookDetailsBody> {
                     _StoreName(storeId: book.storeId!),
                   ],
                   const SizedBox(height: 10),
-                  // Live aggregate from the `reviews` collection — the same
-                  // source the Reviews section below lists — not the seeded
+                  // Live aggregate from the `reviews` collection — the same
+                  // source the Reviews section below lists — not the seeded
                   // `book.ratingCount`, which claimed e.g. "(1423)" reviews
                   // while the section underneath showed none. Tapping jumps
                   // down to the actual reviews.
@@ -149,8 +152,18 @@ class _BookDetailsBodyState extends ConsumerState<_BookDetailsBody> {
                                 ? () {
                                     if (!ensureLoggedIn(context, ref)) return;
                                     ref.read(cartActionsProvider).add(book.id);
-                                    ScaffoldMessenger.of(context)
-                                        .showSnackBar(const SnackBar(content: Text('Added to cart')));
+                                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Added "${book.title}" to cart'),
+                                        duration: const Duration(seconds: 3),
+                                        action: SnackBarAction(
+                                          label: 'View Cart',
+                                          onPressed: () => context.push(AppRoute.cart),
+                                        ),
+                                      ),
+                                    );
+
                                   }
                                 : null,
                           ),
@@ -159,7 +172,7 @@ class _BookDetailsBodyState extends ConsumerState<_BookDetailsBody> {
                     ),
                     const SizedBox(height: 10),
                     // Buy Now adds this book to the cart (if not already there)
-                    // and jumps straight to checkout — if other items are
+                    // and jumps straight to checkout — if other items are
                     // already in the cart, they come along too, same as most
                     // ecommerce apps' "buy now" shortcut. Solid orange (not the
                     // theme's ink color) so it reads as the urgent CTA next to
@@ -355,7 +368,7 @@ class _DetailsTable extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final rows = <MapEntry<String, String>>[
-      MapEntry('Publisher', book.publisher.isEmpty ? '—' : book.publisher),
+      MapEntry('Publisher', book.publisher.isEmpty ? '—' : book.publisher),
       MapEntry('Language', book.language),
       if (book.pages != null) MapEntry('Pages', '${book.pages}'),
       if (book.isbn != null) MapEntry('ISBN', book.isbn!),
